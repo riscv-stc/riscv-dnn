@@ -57,15 +57,6 @@ def test(num, params, defs, fp16acc):
     
 
 if __name__ == "__main__":
-    # # check params
-    # params = (
-    #     #  m k n
-    #     (1, 1, 10),
-    #     (10, 10, 1),
-    #     (63, 65, 63),
-    #     (65, 63, 65),
-    # )
-
     # perf params
     params = (
         #  m k n
