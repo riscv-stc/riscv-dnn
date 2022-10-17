@@ -26,7 +26,7 @@ defs = '-D__RVM__'
 
 pwd = os.path.dirname(os.path.realpath(__file__))
 model_path = os.path.join(pwd, "resnet-50_v2.pb")
-img_url = os.path.join(pwd, "data")
+img_url = os.path.join(pwd, "dataset")
 
 simulator = 'spike'
 begin_addr = 0
@@ -95,7 +95,7 @@ def get_golden_check(num, layer, acc):
 
 if __name__ == "__main__" :
     ## compile
-    for pic_num in range(16, 65):
+    for pic_num in range(0, 65):
         os.system(f"make clean && make run SIM={simulator} DEFS='{defs} -DN={pic_num}'")
         # begin_addr = get_sig_addr("test.map", "begin_signature")
         # print("begin_signature: ", hex(begin_addr))
