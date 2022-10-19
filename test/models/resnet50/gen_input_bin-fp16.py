@@ -37,8 +37,6 @@ def preprocessor_all(num):
         image = _central_crop(image, 224, 224)
 
         x = _mean_image_subtraction(image, _CHANNEL_MEANS, 3)
-        #x = x.astype(np.float16)
-        #print(x)
         x = tf.expand_dims(x, 0)
         x = x.astype(np.float16)
         np.save('done/ILSVRC2012_val_000%05d.npy' %(i+1), x)
@@ -68,23 +66,23 @@ def main():
  
     preprocessor_all(image_count)
  
-    r = open('tf_result-fp16.txt', 'w+')
-    for i in range(image_count):
-        img = imread('dataset/'+image_names[i])
-        print('dataset/'+image_names[i], end=": ")
-        img = resize(img, (224, 224, 3)) * 255    # cast back to 0-255 range
-        img = preprocess_input(img)
-        # fp16
-        img = img.astype(np.float16)
-        img = np.expand_dims(img, 0)
+    # r = open('tf_result-fp16.txt', 'w+')
+    # for i in range(image_count):
+    #     img = imread('dataset/'+image_names[i])
+    #     print('dataset/'+image_names[i], end=": ")
+    #     img = resize(img, (224, 224, 3)) * 255    # cast back to 0-255 range
+    #     img = preprocess_input(img)
+    #     # fp16
+    #     img = img.astype(np.float16)
+    #     img = np.expand_dims(img, 0)
 
-        # predict the result by using Keras directly
-        img_pred = model.predict(img)
-        # decode the keras prediction
-        pred_dec_k = decode_predictions(img_pred)
-        print(pred_dec_k[0][0][0] + ',' + pred_dec_k[0][0][1] + ',' + str(pred_dec_k[0][0][2]))
-        r.write(pred_dec_k[0][0][0] + ',' + pred_dec_k[0][0][1] + ',' + str(pred_dec_k[0][0][2]) + '\n')
-    r.close()
+    #     # predict the result by using Keras directly
+    #     img_pred = model.predict(img)
+    #     # decode the keras prediction
+    #     pred_dec_k = decode_predictions(img_pred)
+    #     print(pred_dec_k[0][0][0] + ',' + pred_dec_k[0][0][1] + ',' + str(pred_dec_k[0][0][2]))
+    #     r.write(pred_dec_k[0][0][0] + ',' + pred_dec_k[0][0][1] + ',' + str(pred_dec_k[0][0][2]) + '\n')
+    # r.close()
 
 
 
