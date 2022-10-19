@@ -17,8 +17,6 @@ from tensorflow.keras.applications.resnet import preprocess_input, decode_predic
 from tensorflow.keras.applications.resnet import ResNet101 as resnet
 from imagenet_preprocessing import _aspect_preserving_resize, _central_crop, _mean_image_subtraction, _RESIZE_MIN, _CHANNEL_MEANS
 import tensorflow as tf
-from tensorflow.python.ops.numpy_ops import np_config
-np_config.enable_numpy_behavior()
 
 
 def preprocessor_all(num):
@@ -38,6 +36,7 @@ def preprocessor_all(num):
 
         x = _mean_image_subtraction(image, _CHANNEL_MEANS, 3)
         x = tf.expand_dims(x, 0)
+        x = np.array(x)
         x = x.astype(np.float16)
         np.save('done/ILSVRC2012_val_000%05d.npy' %(i+1), x)
 

@@ -90,4 +90,4 @@ jax==0.2.17
 jaxlib==0.1.69
 scikit-image==0.17.2
 keras==2.4.0
-PyQt5==5.15.7
+PyQt5==5.15.6
