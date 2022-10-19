@@ -31,13 +31,11 @@ int main(int argc, char **argv)
     tensor_new_2d(src2Mat, k, n, sizeof(float16_t), src2Data);
     tensor_new_2d(dstMat, m, n, sizeof(float16_t), &dstData);
 
-    PERF_BEGIN();
 
     for (int i = 0; i < 10; i++) {
         matmul(&dstMat, &src1Mat, &src2Mat);
     }
 
-    PERF_END();
     
     printf("End\n");
 

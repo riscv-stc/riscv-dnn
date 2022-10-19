@@ -8,7 +8,7 @@
 #include "mme.h"
 #include "matmul.h"
 
-static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
+static inline int conv_matrix(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -63,6 +63,11 @@ static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
     }
 
     return matmul(&dst_2d, srcPad, &weight_2d);
+}
+
+static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
+{
+  conv_matrix(dst, src, weight, srcPad, ss);
 }
 
 #endif

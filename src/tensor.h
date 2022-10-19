@@ -2,6 +2,7 @@
 #define __TENSOR_H__
 
 #include <riscv_vector.h>
+#include "encoding.h"
 
 #define DEBUG_PRINT 0
 
@@ -21,8 +22,8 @@ typedef double float64_t;
   exit(3); \
 } while(0)
 
-#define VLEN 1024
-#define VLENB 128
+#define VLEN  (read_csr(vlenb) * 8)
+#define VLENB  (read_csr(vlenb))
 
 #define min(a, b)  (a < b? a: b)
 #define max(a, b)  (a > b? a: b)
