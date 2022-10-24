@@ -124,12 +124,16 @@ if __name__ == "__main__":
                 perf_data = [perf_data[col] for col in cols]
                 output.loc[i] = perf_data
         if simulator != 'spike':
+            perf_data = vcs_get_perf_data()
+            perf_data["Workload"] = 'x'.join(map(str, params[i]))
+            perf_data = [perf_data[col] for col in cols]
+            output.loc[i] = perf_data
             output = output.set_index('Workload')
             os.makedirs('perf', exist_ok=True)
             output.to_csv(f'perf/{key}.csv')
 
     if simulator != 'spike':
-        generate_perf_report(title, [x for x in opt_levels.keys()])
+        #generate_perf_report(title, [x for x in opt_levels.keys()]
+        case_title = 'x'.join(map(str, params[i]))
+        PlotMetrics(case_title)
         print('> Perf report generated.')
-        # case_title = 'x'.join(map(str, params[i]))
-        # PlotMetrics(case_title)

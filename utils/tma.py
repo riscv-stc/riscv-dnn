@@ -66,8 +66,12 @@ def GetMetrics():
     METRICS['dividerRatio']     = round(EV['intDividerRetired'] * 100/ EV['intTotalRetired'], 2)
     METRICS['intOtherRatio']    = round(100 - METRICS['branchRatio'] - METRICS['dividerRatio'], 2)
 
-    METRICS['fpDividerRatio']   = round(EV['fpDividerRetired'] * 100 / EV['fpTotalRetired'], 2)
-    METRICS['fpOtherRatio']     = round(100 - METRICS['fpDividerRatio'], 2)
+    if EV['fpTotalRetired'] == 0:
+        METRICS['fpDividerRatio']   = 0
+        METRICS['fpOtherRatio']     = 0
+    else :
+        METRICS['fpDividerRatio']   = round(EV['fpDividerRetired'] * 100 / EV['fpTotalRetired'], 2)
+        METRICS['fpOtherRatio']     = round(100 - METRICS['fpDividerRatio'], 2)
 
     METRICS['rvvVsetRatio']     = round(EV['rvvVsetRetired'] * 100  / EV['rvvTotalRetired'], 2)
     METRICS['rvvLoadRatio']     = round(EV['rvvLoadRetired'] * 100  / EV['rvvTotalRetired'], 2)
@@ -95,7 +99,11 @@ def GetMetrics():
     METRICS['vecUnitUtil'] = round(EV['vecUnitUtilization'] * 100 / CLKS, 2)
     METRICS['vmxUnitUtil'] = round(EV['vmxUnitUtilization'] * 100 / CLKS, 2)
 
-    METRICS['mem_latency']   = round(EV['memLatency'] * 100 / EV['memStallsL1Miss'], 2)
+    if EV['memStallsL1Miss'] == 0:
+      METRICS['mem_latency']   = 0
+    else :   
+        METRICS['mem_latency']   = round(EV['memLatency'] * 100 / EV['memStallsL1Miss'], 2)
+        
     METRICS['mem_bandwidth'] = round(100 - METRICS['mem_latency'], 2)
 
     return METRICS
