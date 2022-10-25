@@ -42,7 +42,7 @@ static inline int matmul_matrix(Tensor *dst, Tensor *src1, Tensor *src2)
             asm volatile("msettilen %[rd], %[rs1]"
                         : [rd]"=r"(tile_n)
                         : [rs1]"r"(n-j));
-            asm volatile("mwemulc.mi acc0, acc1, 0");
+            asm volatile("mwsubc.mm acc0, acc0");
             for (int kk = 0; kk < k; kk += tile_k) {
                 asm volatile("msettilek %[rd], %[rs1]"
                             : [rd]"=r"(tile_k)
