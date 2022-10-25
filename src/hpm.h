@@ -269,10 +269,6 @@ static inline int topDownCntSet(){
   write_csr(scounteren, -1);
   write_csr(mcounteren, -1);
 
-  SET_PERFCNT( 3,  8, 0); // slots issued
-  SET_PERFCNT( 4,  9, 0); // fetch bubbles
-  SET_PERFCNT( 5, 10, 0); // branch instruction retired
-
   SET_PERFCNT( 6,  8, 1); // bad resteers
   SET_PERFCNT( 7,  9, 1); // recovery bubbles
   SET_PERFCNT( 8, 10, 1); // unknown branch steers
@@ -282,26 +278,29 @@ static inline int topDownCntSet(){
   SET_PERFCNT(12, 14, 1); // i-TLB stall
   SET_PERFCNT(13, 15, 1); // mem stall on any load
   SET_PERFCNT(14, 16, 1); // mem stall on any store
+  SET_PERFCNT(15, 17, 1); // mem stall on L1 miss
 
-  SET_PERFCNT(15, 16, 2); // Mem Unit valids
-  SET_PERFCNT(16, 17, 2); // Jmp Unit valids
-  SET_PERFCNT(17, 18, 2); // ALU Unit valids
-  SET_PERFCNT(18, 19, 2); // FPU EXE Unit valids
-  SET_PERFCNT(19, 20, 2); // Vector EXE Units valids
-  SET_PERFCNT(20, 21, 2); // Vector VMX Units valids
-  SET_PERFCNT(21, 22, 2); // divider busy cycles
-  SET_PERFCNT(22, 11, 2); // execution stalls (few = 1)
+  SET_PERFCNT(16, 18, 2); // ALU Unit valids
+  SET_PERFCNT(17, 19, 2); // FPU EXE Unit valids
+  SET_PERFCNT(18, 20, 2); // Vector EXE Units valids
+  SET_PERFCNT(19, 21, 2); // Matrix EXE Units valids
+  SET_PERFCNT(20, 22, 2); // divider busy cycles
+  SET_PERFCNT(21, 11, 2); // execution stalls (few = 1)
 
-  SET_PERFCNT(23, 23, 1); // rob cycles
-  SET_PERFCNT(24, 17, 1); // mem stall on L1 miss
+  SET_PERFCNT(22, 20, 5); // retired int div
+  SET_PERFCNT(23, 21, 5); // retired float  total
+  SET_PERFCNT(24, 25, 5); // retired float  div
+  SET_PERFCNT(25, 26, 5); // retired vector total
+  SET_PERFCNT(26, 28, 5); // retired vector load
+  SET_PERFCNT(27, 29, 5); // retired vector store
+  SET_PERFCNT(28, 32, 5); // retired matrix total
+  SET_PERFCNT(29, 33, 5); // retired matrix set
+  SET_PERFCNT(30, 34, 5); // retired matrix load
+  SET_PERFCNT(31, 35, 5); // retired matrix store
 
-  SET_PERFCNT(25, 21, 5); // retired float total
-  SET_PERFCNT(26, 25, 5); // retired float div
-  SET_PERFCNT(27, 26, 5); // retired vector total
-  SET_PERFCNT(28, 27, 5); // retired vector vset
-  SET_PERFCNT(29, 28, 5); // retired vector load
-  SET_PERFCNT(30, 29, 5); // retired vector store
-  SET_PERFCNT(31, 20, 5); // retired int div
+  SET_PERFCNT( 5, 10, 0); // branch instruction retired
+  SET_PERFCNT( 3,  8, 0); // slots issued
+  SET_PERFCNT( 4,  9, 0); // fetch bubbles
 
   write_csr(minstret, 0);
   write_csr(mcycle, 0);
@@ -314,9 +313,11 @@ static inline int topDownCntGet(){
   long slotsIss, fetchBubbles, branchCnt;
   long badResteers, recovery, unknownBranch, branchMiss, machineClear;
   long iCacheStall, iTLBStall, memLoadStall, memStoreStall;
-  long memUtil, jmpUtil, aluUtil, fpuUtil, vecUtil, vmxUtil, exeStall;
-  long robStall, memStallL1Miss, divBusyCycles;
-  long fpTotal, fpDiv, rvvTotal, rvvVset, rvvLoad, rvvStore, intDiv, intTotal;
+  long aluUtil, fpuUtil, vecUtil, matUtil, exeStall;
+  long memStallL1Miss, divBusyCycles;
+  long fpTotal, fpDiv, intDiv, intTotal;
+  long rvvTotal, rvvLoad, rvvStore;
+  long rvmTotal, rvmMset, rvmLoad, rvmStore;
 
   instret        = read_csr(minstret);
   cycles         = read_csr(mcycle);
@@ -332,24 +333,24 @@ static inline int topDownCntGet(){
   iTLBStall      = GET_PERCNT(12);
   memLoadStall   = GET_PERCNT(13);
   memStoreStall  = GET_PERCNT(14);
-  memUtil        = GET_PERCNT(15);
-  jmpUtil        = GET_PERCNT(16);
-  aluUtil        = GET_PERCNT(17);
-  fpuUtil        = GET_PERCNT(18);
-  vecUtil        = GET_PERCNT(19);
-  vmxUtil        = GET_PERCNT(20);
-  divBusyCycles  = GET_PERCNT(21);
-  exeStall       = GET_PERCNT(22);
-  robStall       = GET_PERCNT(23);
-  memStallL1Miss = GET_PERCNT(24);
-  fpTotal        = GET_PERCNT(25);
-  fpDiv          = GET_PERCNT(26);
-  rvvTotal       = GET_PERCNT(27);
-  rvvVset        = GET_PERCNT(28);
-  rvvLoad        = GET_PERCNT(29);
-  rvvStore       = GET_PERCNT(30);
-  intDiv         = GET_PERCNT(31);
-  intTotal       = instret - fpTotal - rvvTotal;
+  memStallL1Miss = GET_PERCNT(15);
+  aluUtil        = GET_PERCNT(16);
+  fpuUtil        = GET_PERCNT(17);
+  vecUtil        = GET_PERCNT(18);
+  matUtil        = GET_PERCNT(19);
+  divBusyCycles  = GET_PERCNT(20);
+  exeStall       = GET_PERCNT(21);
+  intDiv         = GET_PERCNT(22);
+  fpTotal        = GET_PERCNT(23);
+  fpDiv          = GET_PERCNT(24);
+  rvvTotal       = GET_PERCNT(25);
+  rvvLoad        = GET_PERCNT(26);
+  rvvStore       = GET_PERCNT(27);
+  rvmTotal       = GET_PERCNT(28);
+  rvmMset        = GET_PERCNT(29);
+  rvmLoad        = GET_PERCNT(30);
+  rvmStore       = GET_PERCNT(31);
+  intTotal       = instret - fpTotal - rvvTotal - rvmTotal;
 
   printf("instret:%ld\n", (long)(instret));
   printf("cycles:%ld\n",  (long)(cycles));
@@ -366,26 +367,24 @@ static inline int topDownCntGet(){
   printf("iTLBStallCycles:%ld\n",      iTLBStall);
   printf("memStallsAnyLoad:%ld\n",     memLoadStall);
   printf("memStallsStores:%ld\n",      memStoreStall);
-  printf("memUnitUtilization:%ld\n",   memUtil);
-  printf("jmpUnitUtilization:%ld\n",   jmpUtil);
+  printf("memStallsL1Miss:%ld\n",      memStallL1Miss);
   printf("aluUnitUtilization:%ld\n",   aluUtil);
   printf("fpuUnitUtilization:%ld\n",   fpuUtil);
   printf("vecUnitUtilization:%ld\n",   vecUtil);
-  printf("vmxUnitUtilization:%ld\n",   vmxUtil);
+  printf("matUnitUtilization:%ld\n",   matUtil);
   printf("divBusyCycles:%ld\n",        divBusyCycles);
   printf("exeStallCycles:%ld\n",       exeStall);
-  printf("robStallCycles:%ld\n",       robStall);
-  printf("memStallsL1Miss:%ld\n",      memStallL1Miss);
-
+  printf("intTotalRetired:%ld\n",      intTotal);
+  printf("intDividerRetired:%ld\n",    intDiv);
   printf("fpTotalRetired:%ld\n",       fpTotal);
   printf("fpDividerRetired:%ld\n",     fpDiv);
   printf("rvvTotalRetired:%ld\n",      rvvTotal);
-  printf("rvvVsetRetired:%ld\n",       rvvVset);
   printf("rvvLoadRetired:%ld\n",       rvvLoad);
   printf("rvvStoreRetired:%ld\n",      rvvStore);
-  printf("intDividerRetired:%ld\n",    intDiv);
-  printf("intTotalRetired:%ld\n",      intTotal);
-
+  printf("rvmTotalRetired:%ld\n",      rvmTotal);
+  printf("rvmMsetRetired:%ld\n",       rvmMset);
+  printf("rvmLoadRetired:%ld\n",       rvmLoad);
+  printf("rvmStoreRetired:%ld\n",      rvmStore);
   printf("memLatency:%d\n",            0);
   printf("memStallsL2Miss:%d\n",       0);
   printf("memStallsL3Miss:%d\n",       0);
