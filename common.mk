@@ -20,7 +20,7 @@ GEM5 ?= $(top_dir)/../gem5
 GEM5_OPTS :=
 GEM5_ARGS :=
 
-SIMV ?= /home/zhiqiang.liu/work/chipyard/sims/vcs/simv-chipyard-StcBoomConfig-debug
+SIMV ?= $(top_dir)/../chipyard/sims/vcs/simv-chipyard-StcBoomConfig-debug
 SIMV_ARGS := +fsdbfile=test.fsdb
 SIMV_POST := 
 
