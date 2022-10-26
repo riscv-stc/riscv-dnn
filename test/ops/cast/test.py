@@ -50,10 +50,10 @@ def test(num, params, defs):
 if __name__ == "__main__":
     ############# h, w, cin, cout
     params = (
+            (4, 1, 1, 4),
+            (1, 8, 8, 1),
             (16, 16, 16, 1),
-            (32, 32, 32, 16),
-            (64, 64, 64, 64),
-            (65, 300, 66, 2),
+            (1, 4, 32, 16),
             )
     
     # perf optimization levels
