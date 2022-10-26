@@ -173,10 +173,9 @@ def gem5_get_perf_data(m5out):
 
     return METRICS
 
-def vcs_get_perf_data():
+def vcs_get_perf_data(logpath):
     EV = dict() 
     METRICS = dict()
-    logpath = 'vcs.log'
     with open(logpath, "r") as f:
         lines = f.readlines()
         for line in lines:

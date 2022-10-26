@@ -21,8 +21,7 @@ def GetEV(retpath):
             EV[data[0]] = abs(int(data[1].rstrip()))
     return EV
 
-def GetMetrics():
-    logpath = 'vcs.log'
+def GetMetrics(logpath):
     EV = GetEV(logpath)
     METRICS = dict()
 
@@ -129,8 +128,8 @@ def label(x, y, width, height, rotation, text, text_size, dy = 1):
     yy = y + height / 2 - dy
     plt.text(xx, yy, text, ha="center", family='sans-serif', rotation = rotation, size=text_size)
 
-def PlotMetrics(case_title):
-    METRICS = GetMetrics()
+def PlotMetrics(logpath, figpath, case_title):
+    METRICS = GetMetrics(logpath)
     XYLevel0 = dict()
     XYLevel1 = dict()
     XYLevel2 = dict()
@@ -515,4 +514,4 @@ def PlotMetrics(case_title):
     plt.axis('off')
     plt.suptitle(case_title, y = 0.9)
     plt.title("IPC = " + str(METRICS['IPC']), y = 0)
-    plt.savefig('test.png', dpi=300)
+    plt.savefig(figpath, dpi=300)

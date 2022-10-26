@@ -6,6 +6,8 @@ import pandas as pd
 
 import tensorflow as tf
 
+from parallelize import parallelize
+
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
 from perf import gem5_get_perf_data, vcs_get_perf_data, generate_perf_report
@@ -22,7 +24,7 @@ if len(sys.argv) > 1:
 print("run on %s" % simulator)
 
 
-def avgpool(hin, win, cin, kh, kw, sh=1, sw=1, pt=0, pb=0, pl=0, pr=0):
+def avgpool(num, hin, win, cin, kh, kw, sh=1, sw=1, pt=0, pb=0, pl=0, pr=0):
     shape_input = [1, hin, win, cin]
     vs1 = np.random.random(shape_input).astype('float16') * 2 - 1
     if pt == 0:
@@ -32,8 +34,8 @@ def avgpool(hin, win, cin, kh, kw, sh=1, sw=1, pt=0, pb=0, pl=0, pr=0):
     vd = tf.nn.avg_pool(vs1, [1, kh, kw, 1], [1, sh, sw, 1], padding)
     vd = vd.numpy()
 
-    vs1.tofile("src.bin")
-    vd.tofile('golden.bin')
+    vs1.tofile(f"build/{num}/src.bin")
+    vd.tofile(f'build/{num}/golden.bin')
 
     return vd
 
@@ -59,18 +61,18 @@ def test(num, params, defs):
     else:
         pt, pb, pl, pr = 0, 0, 0, 0
 
-    os.system(f"make clean")
+    os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
-    golden = avgpool(h, w, cin, kh, kw, stride_h, stride_w, pt, pb, pl, pr)
+    golden = avgpool(num, h, w, cin, kh, kw, stride_h, stride_w, pt, pb, pl, pr)
     defines = (
         f'-DHIN={h} -DWIN={w} -DCIN={cin} -DKH={kh} -DKW={kw} '
               f'-DSTRIDE_H={stride_h} -DSTRIDE_W={stride_w} '
               f'-DPAD_TOP={pt} -DPAD_BOTTOM={pb} -DPAD_LEFT={pl} -DPAD_RIGHT={pr}'
     )
 
-    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator}")
+    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
-    result = from_txt( f'{simulator}.sig', golden, 0 )
+    result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)
     check_result = check_to_txt( golden, result, f'check/{num}.data', 'np.allclose( result, golden, rtol=2e-3, atol=0, equal_nan=True)' )
     print(f"> {num}, check result: {check_result}")
@@ -83,9 +85,9 @@ if __name__ == "__main__":
     #                        sh=1, sw=1
     #                                   pt=0, pb=0, pl=0, pr=0
     params = (
-    #   (5, 5, 3, 3, 3),
-    #   (7, 7, 3, 3, 3, 2, 2),
-    #   (9, 9, 3, 3, 3, 2, 2),
+        (5, 5, 3, 3, 3),
+        (7, 7, 3, 3, 3, 2, 2),
+        (9, 9, 3, 3, 3, 2, 2),
         (16, 16, 16, 5, 5),
         (64, 64, 64, 5, 5),
         (66, 66, 130, 7, 7),
@@ -100,30 +102,34 @@ if __name__ == "__main__":
         if simulator == 'vcs': # TODO: support gem5
             defs += ' -DPERF '
 
-        output = pd.DataFrame(columns = cols)
-        for i in range(len(params)):
+        for i in parallelize(range(len(params))):
             test(key+'-'+str(i), params[i], defs)
+            df = pd.DataFrame(columns = cols)
             if simulator == 'gem5':
                 perf_data = gem5_get_perf_data('m5out')
                 perf_data["Workload"] = 'x'.join(map(str, params[i]))
                 perf_data = [perf_data[col] for col in cols]
-                output.loc[i] = perf_data
+                df.loc[0] = perf_data
+                df.to_pickle(f'build/{key}-{i}/perf.pkl')
             elif simulator == 'vcs':
-                perf_data = vcs_get_perf_data()
+                perf_data = vcs_get_perf_data(f'build/{key}-{i}/vcs.log')
                 perf_data["Workload"] = 'x'.join(map(str, params[i]))
                 perf_data = [perf_data[col] for col in cols]
-                output.loc[i] = perf_data
+                df.loc[0] = perf_data
+                df.to_pickle(f'build/{key}-{i}/perf.pkl')
+
+                PlotMetrics(f'build/{key}-{i}/vcs.log', f'build/{key}-{i}/tma.png', 'x'.join(map(str, params[i])))
+
+        output = pd.DataFrame(columns = cols)
+        for i in range(len(params)):
+            if simulator != 'spike':
+                df = pd.read_pickle(f'build/{key}-{i}/perf.pkl')
+                output.loc[i] = df.loc[0]
         if simulator != 'spike':
-            perf_data = vcs_get_perf_data()
-            perf_data["Workload"] = 'x'.join(map(str, params[i]))
-            perf_data = [perf_data[col] for col in cols]
-            output.loc[i] = perf_data
             output = output.set_index('Workload')
             os.makedirs('perf', exist_ok=True)
             output.to_csv(f'perf/{key}.csv')
 
     if simulator != 'spike':
-        #generate_perf_report(title, [x for x in opt_levels.keys()])
-        case_title = 'x'.join(map(str, params[i]))
-        PlotMetrics(case_title)
+        generate_perf_report(title, [x for x in opt_levels.keys()])
         print('> Perf report generated.')

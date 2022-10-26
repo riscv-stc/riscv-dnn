@@ -25,3 +25,6 @@ test/resnet50/data/
 log
 pk
 __pycache__
+build
+stack.info.*
+core.*
