@@ -74,9 +74,14 @@ def GetMetrics():
         METRICS['fpDividerRatio']   = round(EV['fpDividerRetired'] * 100 / EV['fpTotalRetired'], 2)
         METRICS['fpOtherRatio']     = round(100 - METRICS['fpDividerRatio'], 2)
 
-    METRICS['rvvLoadRatio']     = round(EV['rvvLoadRetired'] * 100  / EV['rvvTotalRetired'], 2)
-    METRICS['rvvStoreRatio']    = round(EV['rvvStoreRetired'] * 100 / EV['rvvTotalRetired'], 2)
-    METRICS['rvvOtherRatio']    = round(100 - METRICS['rvvLoadRatio'] - METRICS['rvvStoreRatio'], 2)
+    if EV['rvvTotalRetired'] == 0:
+        METRICS['rvvLoadRatio']     = 0
+        METRICS['rvvStoreRatio']    = 0
+        METRICS['rvvOtherRatio']    = 0
+    else :
+        METRICS['rvvLoadRatio']     = round(EV['rvvLoadRetired'] * 100  / EV['rvvTotalRetired'], 2)
+        METRICS['rvvStoreRatio']    = round(EV['rvvStoreRetired'] * 100 / EV['rvvTotalRetired'], 2)
+        METRICS['rvvOtherRatio']    = round(100 - METRICS['rvvLoadRatio'] - METRICS['rvvStoreRatio'], 2)
 
     if EV['rvmTotalRetired'] == 0:
         METRICS['rvmMsetRatio']     = 0
