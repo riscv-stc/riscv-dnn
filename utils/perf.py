@@ -19,7 +19,7 @@ setups = ['O0', 'O2', 'O3']
 metrics = ['Front', 'BS', 'MEM', 'CORE', 'Retire']
 
 def generate_perf_report(title, setups, metrics=metrics):
-    fig, axes = plt.subplots(nrows=1, ncols=len(setups))
+    fig, axes = plt.subplots(nrows=1, ncols=len(setups), squeeze=False)
 
     # read original data
     dfs = [pd.read_csv(f"perf/{s}.csv") for s in setups]
