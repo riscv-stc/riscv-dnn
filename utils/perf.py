@@ -11,6 +11,12 @@ import re
 from decimal import Decimal
 import math
 
+from inspect import getmembers
+from cffi import FFI
+
+from rich.console import Console
+console = Console()
+
 plt.rcParams["figure.dpi"] = 300
 plt.rcParams['font.size'] = 8 
 
@@ -173,15 +179,36 @@ def gem5_get_perf_data(m5out):
 
     return METRICS
 
-def vcs_get_perf_data(logpath):
-    EV = dict() 
+def cdata_dict(ffi, cd):
+    if isinstance(cd, ffi.CData):
+        try:
+            return ffi.string(cd)
+        except TypeError:
+            try:
+                return [cdata_dict(ffi, x) for x in cd]
+            except TypeError:
+                return {k: cdata_dict(ffi, v) for k, v in getmembers(cd)}
+    else:
+        return cd
+
+def vcs_get_perf_data(datapath):
+    ffi = FFI()
+
+    with open("../../../src/perf-data.h", "r") as f:
+        cdefs = f.read()
+        ffi.cdef(cdefs)
+        f.close()
+
+    perf_data = ffi.new("tma_data_t[]", 8)
+
+    with open(datapath, "rb") as f:
+        f.readinto(ffi.buffer(perf_data))
+
+    EVS = cdata_dict(ffi, perf_data)
+
+    EV = EVS[0]
+    
     METRICS = dict()
-    with open(logpath, "r") as f:
-        lines = f.readlines()
-        for line in lines:
-          if re.search(r"\w:(-*)\d+$", line):
-            data = line.split(":")
-            EV[data[0]] = abs(int(data[1].rstrip()))
 
     PipelineWidth = 2
     CLKS = EV['cycles']
@@ -212,6 +239,12 @@ def vcs_get_perf_data(logpath):
     METRICS['CORE'] = Decimal(core_bound).quantize(Decimal("0.00")) # core_bound
     
     return METRICS
+
+def get_perf_data(datapath, simulator):
+    if simulator == 'vcs':
+        return vcs_get_perf_data(datapath)
+    elif simulator == 'gem5':
+        return gem5_get_perf_data(datapath)
 
 if __name__ == "__main__":
     generate_perf_report(title, setups)

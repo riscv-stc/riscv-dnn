@@ -10,16 +10,12 @@ from parallelize import parallelize
 
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
-from perf import gem5_get_perf_data, vcs_get_perf_data, generate_perf_report
-from tma import *
+from work import do_test
 
 title = "Diffent Optimization levels for conv operator"
 opt_levels = {"O2":"-O2", "O2-unroll-loops":"-O2 -funroll-loops"}
 
-cols = ['Workload', 'Cycles', 'IPC', 'Front', 'BS', 'MEM', 'CORE', 'Retire']
-
 simulator = 'spike'
-GEM5 = "/home/kening.zhang/stc-exp/simulator/gem5"
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
 print("run on %s" % simulator)
@@ -52,12 +48,7 @@ def test(num, params, defs):
 
     extras2 = None
     if extras1:
-        dh, dw, *extras2 = extras1
-    else:
-        pt, pb, pl, pr = 0, 0, 0, 0
-
-    if extras2:
-        pt, pb, pl, pr = extras2
+        pt, pb, pl, pr = extras1
     else:
         pt, pb, pl, pr = 0, 0, 0, 0
 
@@ -94,44 +85,6 @@ if __name__ == "__main__":
         # (64, 64, 64, 7, 7),
         # (16, 16, 130, 5, 5),
         (9, 9, 2, 3, 3,  1, 1,  1, 1, 1, 1),
-)
+    )
     
-    # perf optimization levels
-    for key,val in opt_levels.items():
-        defs = val
-        if simulator == 'vcs': # TODO: support gem5
-            defs += ' -DPERF '
-
-        for i in parallelize(range(len(params))):
-            test(key+'-'+str(i), params[i], defs)
-            df = pd.DataFrame(columns = cols)
-            if simulator == 'gem5':
-                perf_data = gem5_get_perf_data('m5out')
-                perf_data["Workload"] = 'x'.join(map(str, params[i]))
-                perf_data = [perf_data[col] for col in cols]
-                df.loc[0] = perf_data
-                df.to_pickle(f'build/{key}-{i}/perf.pkl')
-            elif simulator == 'vcs':
-                perf_data = vcs_get_perf_data(f'build/{key}-{i}/vcs.log')
-                perf_data["Workload"] = 'x'.join(map(str, params[i]))
-                perf_data = [perf_data[col] for col in cols]
-                df.loc[0] = perf_data
-                df.to_pickle(f'build/{key}-{i}/perf.pkl')
-
-                PlotMetrics(f'build/{key}-{i}/vcs.log', f'build/{key}-{i}/tma.png', 'x'.join(map(str, params[i])))
-
-        output = pd.DataFrame(columns = cols)
-        for i in range(len(params)):
-            if simulator != 'spike':
-                df = pd.read_pickle(f'build/{key}-{i}/perf.pkl')
-                output.loc[i] = df.loc[0]
-        if simulator != 'spike':
-            output = output.set_index('Workload')
-            os.makedirs('perf', exist_ok=True)
-            output.to_csv(f'perf/{key}.csv')
-
-    if simulator != 'spike':
-        generate_perf_report(title, [x for x in opt_levels.keys()])
-        print('> Perf report generated.')
-
-
+    do_test(params, opt_levels, test, title, simulator, simulator!='spike')

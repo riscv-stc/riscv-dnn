@@ -11,6 +11,9 @@ import math
 import re
 import os
 
+from inspect import getmembers
+from cffi import FFI
+
 def GetEV(retpath):
     EV = dict()
     with open(retpath, "r") as f:
@@ -21,8 +24,39 @@ def GetEV(retpath):
             EV[data[0]] = abs(int(data[1].rstrip()))
     return EV
 
-def GetMetrics(logpath):
-    EV = GetEV(logpath)
+def cdata_dict(ffi, cd):
+    if isinstance(cd, ffi.CData):
+        try:
+            return ffi.string(cd)
+        except TypeError:
+            try:
+                return [cdata_dict(ffi, x) for x in cd]
+            except TypeError:
+                return {k: cdata_dict(ffi, v) for k, v in getmembers(cd)}
+    else:
+        return cd
+
+def GetMetrics(datapath):
+    ffi = FFI()
+
+    with open("../../../src/perf-data.h", "r") as f:
+        cdefs = f.read()
+        ffi.cdef(cdefs)
+        f.close()
+
+    perf_data = ffi.new("tma_data_t[]", 8)
+
+    with open(datapath, "rb") as f:
+        f.readinto(ffi.buffer(perf_data))
+
+    EVS = cdata_dict(ffi, perf_data)
+
+    EV = EVS[0]
+    EV['memLatency'] = 0
+    EV['memStallsL2Miss'] = 0
+    EV['memStallsL3Miss'] = 0
+
+
     METRICS = dict()
 
     PipelineWidth = 2
