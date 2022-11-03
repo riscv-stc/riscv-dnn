@@ -51,11 +51,12 @@ def test(num, params, defs):
 if __name__ == "__main__":
     ############# h, w, c, base
     params = (
-            (2, 2, 1, 0),
-            (5, 5, 5, 0),
-            (5, 5, 65, 0),
-            (5, 5, 130, 0),
-            (2, 2, 1, 0.1),
+            (1, 1, 8, 0),
+            (1, 4, 8, 0),
+            (1, 8, 8, 0),
+            (1, 32, 8, 0),
+            (1, 128, 8, 0),
+            (1, 512, 8, 0),
             )
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')
