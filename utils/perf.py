@@ -9,7 +9,6 @@ import base64
 import os
 import re
 from decimal import Decimal
-import math
 
 from inspect import getmembers
 from cffi import FFI
@@ -35,9 +34,10 @@ def generate_perf_report(title, setups, metrics=metrics):
     for i in range(len(dfs)):
         df = dfs[i]
         df = df[[*metrics]]
-        df.plot(ax=axes[i], kind="barh", stacked=True, legend=False, title=setups[i])
+        console.log(df)
+        df.plot(ax=axes[0][i], kind="barh", stacked=True, legend=False, title=setups[i])
         if i != 0:
-            axes[i].get_yaxis().set_visible(False)
+            axes[0][i].get_yaxis().set_visible(False)
 
     plt.legend(bbox_to_anchor=(1.0, 1.0))
     fig.tight_layout()

@@ -6,11 +6,10 @@ import pandas as pd
 
 import tensorflow as tf
 
-from parallelize import parallelize
-
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
 from work import do_test
+
 
 title = "Diffent Optimization levels for conv operator"
 opt_levels = {"O2":"-O2", "O2-unroll-loops":"-O2 -funroll-loops"}
