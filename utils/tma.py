@@ -96,8 +96,8 @@ def GetMetrics(datapath):
     METRICS['itlb_miss']        = round(EV['iTLBStallCycles'] * 100 / FETCH_LATENCY_CYCLES, 2)
     METRICS['branch_resteers']  = max(round((EV['badResteers'] + EV['unknowBanchCycles']) * 100 / FETCH_LATENCY_CYCLES, 2), 0)
 
-    METRICS['branchRatio']      = round(EV['branchRetired'] * 100 / EV['intTotalRetired'], 2)
-    METRICS['dividerRatio']     = round(EV['intDividerRetired'] * 100/ EV['intTotalRetired'], 2)
+    METRICS['branchRatio']      = round(EV['branchRetired'] * 100 / EV['instret'], 2)
+    METRICS['dividerRatio']     = round(EV['intDividerRetired'] * 100/ EV['instret'], 2)
     METRICS['intOtherRatio']    = round(100 - METRICS['branchRatio'] - METRICS['dividerRatio'], 2)
 
     if EV['fpTotalRetired'] == 0:

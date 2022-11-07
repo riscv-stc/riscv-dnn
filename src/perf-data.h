@@ -8,6 +8,15 @@ typedef struct {
     long fpTotalRetired, fpDividerRetired, intDividerRetired, intTotalRetired;
     long rvvTotalRetired, rvvLoadRetired, rvvStoreRetired;
     long rvmTotalRetired, rvmMsetRetired, rvmLoadRetired, rvmStoreRetired;
+
+    long branchResteerCycles;
+    long refetchLatencyCycles, defetchLatencyCycles, branches;
+    long renamedInsts, squashCycles;
+    long vectorVsetvli, vectorVsetvl, vectorVsetivli;
+    long vectorUnitStrideLoad, vectorUnitStrideStore, vectorStirdeLoad, vectorStrideStore, vectorIndexLoad, vectorIndexStore;
+    long vectorSegmentLoad, vectorSegmentStore, vectorWholeRegisterLoad, vectorWholeRegisterStore;
+    long vectorFloat, vectorInt;
+    long scalar_loads, scalar_stores;
 } tma_data_t;
 
 typedef struct {

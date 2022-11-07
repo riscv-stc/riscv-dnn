@@ -15,10 +15,12 @@ SIM ?= spike
 # supported: llvm gnu
 TC ?= llvm
 
+NCORES ?= 1
+
 SPIKE := spike
 SPIKE_ARGS :=
 
-GEM5 ?= $(top_dir)/../gem5
+GEM5 ?= /home/kening.zhang/work/stc-exp/gem5
 GEM5_OPTS :=
 GEM5_ARGS :=
 
@@ -34,14 +36,15 @@ ifeq (x$(SIM), xspike)
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	defines += -D__SPIKE__
 else ifeq (x$(SIM), xgem5)
-	SIM_CMD ?= $(top_dir)/scripts/gem5.sh \
-		$(GEM5)/build/RISCV/gem5.opt --listener-mode=off $(GEM5_OPTS) \
-		   $(GEM5)/configs/example/fs.py --signature=build/$(NUM)/gem5.sig \
-		   --cpu-type=StcBoom --bp-type=LTAGE --num-cpu=1 \
+	SIM_CMD ?= $(GEM5)/build/RISCV/gem5.opt --listener-mode=off $(GEM5_OPTS) \
+		$(GEM5)/configs/example/fs.py --signature=build/$(NUM)/gem5.sig \
+		   --cpu-type=StcBoom --bp-type=LTAGE --num-cpu=${NCORES} \
 		   --mem-channels=1 --mem-size=3072MB \
-		   --caches --cacheline_size=128 \
+		   --caches --cacheline_size=128  --enable_vcache\
 		   --l1d_size=64kB --l1i_size=64kB --l1i_assoc=8 --l1d_assoc=8 \
-		   --l2cache --l2_size=64MB \
+		   --l3cache --l2_size=16MB  \
+		   --l1v_num_banks=8 --l2_num_banks=8 --l3_num_banks=8 \
+		   --vmuLoadPorts=4 --vmuStorePorts=2 \
 		   $(GEM5_ARGS) --kernel=
 	SIMV_POST := | tee build/$(NUM)/gem5.log
 	defines += -D__GEM5__

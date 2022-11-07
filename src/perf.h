@@ -7,7 +7,7 @@
 
 #ifdef __GEM5__
 #define PERF_BEGIN()  enableCount();startCount()
-#define PERF_END()    stopCount();printfCount()
+#define PERF_END()    stopCount();
 #else
 #define PERF_BEGIN()  topDownCntSet()
 #define PERF_END()    topDownCntGet()

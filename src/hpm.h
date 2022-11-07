@@ -18,39 +18,7 @@
             asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
             __tmp; })
 
-volatile uint64_t csr_cycle = 1;
-volatile uint64_t csr_opsCommitted = 1;
-volatile uint64_t csr_machineClearCycles = 1;
-volatile uint64_t csr_icacheStallCycles = 1;
-volatile uint64_t csr_branchResteerCycles = 1;
-volatile uint64_t csr_defetchLatencyCycles = 1;
-volatile uint64_t csr_refetchLatencyCycles = 1;
-volatile uint64_t csr_fetchBubblesInsts = 1;
-volatile uint64_t csr_renamedInsts = 1;
-volatile uint64_t csr_squashCycles = 1;
-volatile uint64_t csr_iewExecStallCycle = 1;
-volatile uint64_t csr_iewAnyLoadStallCycles = 1;
-volatile uint64_t csr_iewStoresStallCycles = 1;
-volatile uint64_t csr_branches = 1;
-volatile uint64_t csr_vctorVsetvli = 1;
-volatile uint64_t csr_vectorVsetvl = 1;
-volatile uint64_t csr_vectorVsetivli = 1;
-volatile uint64_t csr_branchMispredicts = 1;
-volatile uint64_t csr_vectorUnitStrideLoad = 1;
-volatile uint64_t csr_vectorUnitStrideStore = 1;
-volatile uint64_t csr_vectorStrideLoad = 1;
-volatile uint64_t csr_vectorStrideStore = 1;
-volatile uint64_t csr_vectorIndexLoad = 1;
-volatile uint64_t csr_vectorIndexStore = 1;
-volatile uint64_t csr_vectorSegmentLoad = 1;
-volatile uint64_t csr_vectorSegmentStore = 1;
-volatile uint64_t csr_vectorWholeRegisterLoad = 1;
-volatile uint64_t csr_vectorWholeRegisterStore = 1;
-volatile uint64_t csr_vectorFloat = 1;
-volatile uint64_t csr_vectorInt = 1;
-volatile uint64_t csr_floating = 1;
-volatile uint64_t csr_scalarLoads = 1;
-volatile uint64_t csr_scalarStores = 1;
+static tma_data_t perf_info[CORE_MAX] __attribute__((__section__(".pfdata.output")));
 
 void enableCount() {
     write_csr(mcounteren, -1); // Enable supervisor use of all perf counters
@@ -59,55 +27,76 @@ void enableCount() {
 
 static inline void startCount()
 {
-    csr_opsCommitted             = read_csr_safe(instret);
-    csr_defetchLatencyCycles     = read_csr_safe(hpmcounter6);
-    csr_refetchLatencyCycles     = read_csr_safe(hpmcounter7);
-    csr_fetchBubblesInsts        = read_csr_safe(hpmcounter8);
-    csr_renamedInsts             = read_csr_safe(hpmcounter9);
-    csr_squashCycles             = read_csr_safe(hpmcounter10);
-    csr_iewExecStallCycle        = read_csr_safe(hpmcounter11);
-    csr_iewAnyLoadStallCycles    = read_csr_safe(hpmcounter12);
-    csr_iewStoresStallCycles     = read_csr_safe(hpmcounter13);
-    csr_branchMispredicts        = read_csr_safe(hpmcounter18);
-    csr_machineClearCycles       = read_csr_safe(hpmcounter3);
-    csr_cycle                    = read_csr_safe(cycle);
+    int core_id = read_csr(mhartid);
+    perf_info[core_id].instret                  = read_csr_safe(instret);
+    perf_info[core_id].machineClears            = read_csr_safe(hpmcounter3);
+    perf_info[core_id].iCacheStallCycles        = read_csr_safe(hpmcounter4);
+    perf_info[core_id].branchResteerCycles      = read_csr_safe(hpmcounter5);
+    perf_info[core_id].defetchLatencyCycles     = read_csr_safe(hpmcounter6);
+    perf_info[core_id].refetchLatencyCycles     = read_csr_safe(hpmcounter7);
+    perf_info[core_id].fetchBubbles             = read_csr_safe(hpmcounter8);
+    perf_info[core_id].renamedInsts             = read_csr_safe(hpmcounter9);
+    perf_info[core_id].squashCycles             = read_csr_safe(hpmcounter10);
+    perf_info[core_id].exeStallCycles           = read_csr_safe(hpmcounter11);
+    perf_info[core_id].memStallsAnyLoad         = read_csr_safe(hpmcounter12);
+    perf_info[core_id].memStallsStores          = read_csr_safe(hpmcounter13);
+    perf_info[core_id].branches                 = read_csr_safe(hpmcounter14);
+    perf_info[core_id].vectorVsetvli            = read_csr_safe(hpmcounter15);
+    perf_info[core_id].vectorVsetvl             = read_csr_safe(hpmcounter16);
+    perf_info[core_id].vectorVsetivli           = read_csr_safe(hpmcounter17);
+    perf_info[core_id].brMispredRetired         = read_csr_safe(hpmcounter18);
+    perf_info[core_id].vectorUnitStrideLoad     = read_csr_safe(hpmcounter19);
+    perf_info[core_id].vectorUnitStrideStore    = read_csr_safe(hpmcounter20);
+    perf_info[core_id].vectorStirdeLoad         = read_csr_safe(hpmcounter21);
+    perf_info[core_id].vectorStrideStore        = read_csr_safe(hpmcounter22);
+    perf_info[core_id].vectorIndexLoad          = read_csr_safe(hpmcounter23);
+    perf_info[core_id].vectorIndexStore         = read_csr_safe(hpmcounter24);
+    perf_info[core_id].vectorSegmentLoad        = read_csr_safe(hpmcounter25);
+    perf_info[core_id].vectorSegmentStore       = read_csr_safe(hpmcounter26);
+    perf_info[core_id].vectorWholeRegisterLoad  = read_csr_safe(hpmcounter27);
+    perf_info[core_id].vectorWholeRegisterStore = read_csr_safe(hpmcounter28);
+    perf_info[core_id].vectorFloat              = read_csr_safe(hpmcounter29);
+    perf_info[core_id].vectorInt                = read_csr_safe(hpmcounter30);
+    perf_info[core_id].cycles                   = read_csr_safe(cycle);
 
 }
 
 static inline void stopCount()
 {
-    csr_cycle                    = read_csr_safe(cycle)        - csr_cycle;
-    csr_opsCommitted             = read_csr_safe(instret)      - csr_opsCommitted;
-    csr_machineClearCycles       = read_csr_safe(hpmcounter3)  - csr_machineClearCycles;
-    csr_defetchLatencyCycles     = read_csr_safe(hpmcounter6)  - csr_defetchLatencyCycles;
-    csr_refetchLatencyCycles     = read_csr_safe(hpmcounter7)  - csr_refetchLatencyCycles;
-    csr_fetchBubblesInsts        = read_csr_safe(hpmcounter8)  - csr_fetchBubblesInsts;
-    csr_renamedInsts             = read_csr_safe(hpmcounter9)  - csr_renamedInsts;
-    csr_squashCycles             = read_csr_safe(hpmcounter10) - csr_squashCycles;
-    csr_iewExecStallCycle        = read_csr_safe(hpmcounter11) - csr_iewExecStallCycle;
-    csr_iewAnyLoadStallCycles    = read_csr_safe(hpmcounter12) - csr_iewAnyLoadStallCycles;
-    csr_iewStoresStallCycles     = read_csr_safe(hpmcounter13) - csr_iewStoresStallCycles;
-    csr_branchMispredicts        = read_csr_safe(hpmcounter18) - csr_branchMispredicts;
+    int core_id = read_csr(mhartid);
+    perf_info[core_id].instret                  = read_csr_safe(instret)       - perf_info[core_id].instret                 ;
+    perf_info[core_id].machineClears            = read_csr_safe(hpmcounter3)   - perf_info[core_id].machineClears           ;
+    perf_info[core_id].iCacheStallCycles        = read_csr_safe(hpmcounter4)   - perf_info[core_id].iCacheStallCycles       ;
+    perf_info[core_id].branchResteerCycles      = read_csr_safe(hpmcounter5)   - perf_info[core_id].branchResteerCycles     ;
+    perf_info[core_id].defetchLatencyCycles     = read_csr_safe(hpmcounter6)   - perf_info[core_id].defetchLatencyCycles    ;
+    perf_info[core_id].refetchLatencyCycles     = read_csr_safe(hpmcounter7)   - perf_info[core_id].refetchLatencyCycles    ;
+    perf_info[core_id].fetchBubbles             = read_csr_safe(hpmcounter8)   - perf_info[core_id].fetchBubbles            ;
+    perf_info[core_id].renamedInsts             = read_csr_safe(hpmcounter9)   - perf_info[core_id].renamedInsts            ;
+    perf_info[core_id].squashCycles             = read_csr_safe(hpmcounter10)  - perf_info[core_id].squashCycles            ;
+    perf_info[core_id].exeStallCycles           = read_csr_safe(hpmcounter11)  - perf_info[core_id].exeStallCycles          ;
+    perf_info[core_id].memStallsAnyLoad         = read_csr_safe(hpmcounter12)  - perf_info[core_id].memStallsAnyLoad        ;
+    perf_info[core_id].memStallsStores          = read_csr_safe(hpmcounter13)  - perf_info[core_id].memStallsStores         ;
+    perf_info[core_id].branches                 = read_csr_safe(hpmcounter14)  - perf_info[core_id].branches                ;
+    perf_info[core_id].vectorVsetvli            = read_csr_safe(hpmcounter15)  - perf_info[core_id].vectorVsetvli           ;
+    perf_info[core_id].vectorVsetvl             = read_csr_safe(hpmcounter16)  - perf_info[core_id].vectorVsetvl            ;
+    perf_info[core_id].vectorVsetivli           = read_csr_safe(hpmcounter17)  - perf_info[core_id].vectorVsetivli          ;
+    perf_info[core_id].brMispredRetired         = read_csr_safe(hpmcounter18)  - perf_info[core_id].brMispredRetired        ;
+    perf_info[core_id].vectorUnitStrideLoad     = read_csr_safe(hpmcounter19)  - perf_info[core_id].vectorUnitStrideLoad    ;
+    perf_info[core_id].vectorUnitStrideStore    = read_csr_safe(hpmcounter20)  - perf_info[core_id].vectorUnitStrideStore   ;
+    perf_info[core_id].vectorStirdeLoad         = read_csr_safe(hpmcounter21)  - perf_info[core_id].vectorStirdeLoad        ;
+    perf_info[core_id].vectorStrideStore        = read_csr_safe(hpmcounter22)  - perf_info[core_id].vectorStrideStore       ;
+    perf_info[core_id].vectorIndexLoad          = read_csr_safe(hpmcounter23)  - perf_info[core_id].vectorIndexLoad         ;
+    perf_info[core_id].vectorIndexStore         = read_csr_safe(hpmcounter24)  - perf_info[core_id].vectorIndexStore        ;
+    perf_info[core_id].vectorSegmentLoad        = read_csr_safe(hpmcounter25)  - perf_info[core_id].vectorSegmentLoad       ;
+    perf_info[core_id].vectorSegmentStore       = read_csr_safe(hpmcounter26)  - perf_info[core_id].vectorSegmentStore      ;
+    perf_info[core_id].vectorWholeRegisterLoad  = read_csr_safe(hpmcounter27)  - perf_info[core_id].vectorWholeRegisterLoad ;
+    perf_info[core_id].vectorWholeRegisterStore = read_csr_safe(hpmcounter28)  - perf_info[core_id].vectorWholeRegisterStore;
+    perf_info[core_id].vectorFloat              = read_csr_safe(hpmcounter29)  - perf_info[core_id].vectorFloat             ;
+    perf_info[core_id].vectorInt                = read_csr_safe(hpmcounter30)  - perf_info[core_id].vectorInt               ;
+    perf_info[core_id].cycles                   = read_csr_safe(cycle)         - perf_info[core_id].cycles                  ;
 
 }
 
-static inline void printfCount()
-{
-    printf("Perf: %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
-            csr_cycle                   ,
-            csr_opsCommitted            ,
-            csr_machineClearCycles      ,
-            csr_defetchLatencyCycles    ,
-            csr_refetchLatencyCycles    ,
-            csr_fetchBubblesInsts       ,
-            csr_renamedInsts            ,
-            csr_squashCycles            ,
-            csr_iewExecStallCycle       ,
-            csr_iewAnyLoadStallCycles   ,
-            csr_iewStoresStallCycles    ,
-            csr_branchMispredicts      
-            );
-}
 
 #define SET_PERFCNT(mhpmcnt, eventid, enventclass) \
   write_csr(mhpmcounter ## mhpmcnt, 0); \
@@ -281,7 +270,7 @@ static inline int topDownCntSet(){
   return 0;
 }
 
-static tma_data_t perf_info[CORE_MAX] __attribute__((__section__(".pfdata.output")));
+
 
 static inline int topDownCntGet(){
   int core_id = read_csr(mhartid);
