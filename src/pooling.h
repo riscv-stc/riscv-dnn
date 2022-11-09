@@ -20,13 +20,13 @@ static inline int avgpool(Tensor *dst, Tensor *src, Config *ss)
     int pad_l = ss->left;
     int pad_r = ss->right;
 
-    int hin = src->h;
-    int win = src->w;
-    int cin = src->cin;
+    int hin = src->shape[0];
+    int win = src->shape[1];
+    int cin = src->shape[2];
 
-    int hout = dst->h;
-    int wout = dst->w;
-    int cout = dst->cin;
+    int hout = dst->shape[0];
+    int wout = dst->shape[1];
+    int cout = dst->shape[2];
 
     assert(cout == cin);
 
@@ -82,13 +82,13 @@ static inline int maxpool(Tensor *dst, Tensor *src, Config *ss)
     int pad_l = ss->left;
     int pad_r = ss->right;
 
-    int hin = src->h;
-    int win = src->w;
-    int cin = src->cin;
+    int hin = src->shape[0];
+    int win = src->shape[1];
+    int cin = src->shape[2];
 
-    int hout = dst->h;
-    int wout = dst->w;
-    int cout = dst->cin;
+    int hout = dst->shape[0];
+    int wout = dst->shape[1];
+    int cout = dst->shape[2];
 
     assert(cout == cin);
 

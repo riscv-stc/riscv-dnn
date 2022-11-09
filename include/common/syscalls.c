@@ -121,7 +121,9 @@ static void init_tls()
 void _init(int cid, int nc)
 {
   init_tls();
+#ifndef CORENUMS
   thread_entry(cid, nc);
+#endif
 
   // only single-threaded programs should ever get here.
   int ret = main(0, 0);

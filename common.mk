@@ -20,7 +20,7 @@ NCORES ?= 1
 SPIKE := spike
 SPIKE_ARGS :=
 
-GEM5 ?= /home/kening.zhang/work/stc-exp/gem5
+GEM5 ?= $(top_dir)/../gem5
 GEM5_OPTS :=
 GEM5_ARGS :=
 
@@ -32,7 +32,7 @@ PK := pk
 
 ifeq (x$(SIM), xspike)
 	SIM_CMD ?= \
-		$(SPIKE) --isa=rv64gcv_zfh --varch=vlen:1024,elen:64,slen:1024,mlen:65536 \
+		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh --varch=vlen:128,elen:64,slen:128,mlen:1024 \
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	defines += -D__SPIKE__
 else ifeq (x$(SIM), xgem5)

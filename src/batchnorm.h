@@ -13,11 +13,11 @@
 */
 static int batchnorm2(Tensor *dst, Tensor *src, Tensor *mean, Tensor *variance, Tensor *gam, Tensor *beta, float16_t epsilon)
 {
-    int h = src->h;
-    int w = src->w;
-    int c = src->cin;
+    int h = src->shape[0];
+    int w = src->shape[1];
+    int c = src->shape[2];
 
-    assert(c == gam->w && c == beta->w);
+    assert(c == gam->shape[0] && c == beta->shape[0]);
 
     float16_t *psrc = (float16_t *)src->data;
     float16_t *pmean = (float16_t *)mean->data;
@@ -68,9 +68,9 @@ static int batchnorm2(Tensor *dst, Tensor *src, Tensor *mean, Tensor *variance, 
 */
 static inline int batchnorm(Tensor *dst, Tensor *src, Tensor *alpha, Tensor *beta)
 {
-    int h = src->h;
-    int w = src->w;
-    int c = src->cin;
+    int h = src->shape[0];
+    int w = src->shape[1];
+    int c = src->shape[2];
 
     // assert(c == alpha->w && c == beta->w);
 
