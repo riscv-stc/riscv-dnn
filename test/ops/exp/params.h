@@ -15,4 +15,8 @@
 
 #define SIZE  (H * W * CIN)
 
+#ifndef NLOOPS
+#define NLOOPS 1
+#endif
+
 #endif

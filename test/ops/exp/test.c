@@ -29,7 +29,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    exp(&dstMat, &srcMat);
+    for (int i = 0; i < NLOOPS; i++) {
+        exp(&dstMat, &srcMat);
+    }
 
     PERF_END();
 

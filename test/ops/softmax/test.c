@@ -28,7 +28,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    softmax(&dstMat, &srcMat);
+    for (int i = 0; i < NLOOPS; i++) {
+        softmax(&dstMat, &srcMat);
+    }
 
     PERF_END();        
 

@@ -12,7 +12,8 @@ from work import do_test
 title = "Diffent Optimization levels for matmul operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+# opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+opt_levels = {"loop=1":"-D__RVM__", "loop=2":"-DNLOOPS=2 -D__RVM__"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:

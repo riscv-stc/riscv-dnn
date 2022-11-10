@@ -10,7 +10,7 @@ from work import do_test
 
 
 title = "Diffent Optimization levels for add operator"
-opt_levels = {"O2":"-O2", "O2-loops":"-O2 -funroll-loops"}
+opt_levels = {"loop=1":"", "loop=2":"-DNLOOPS=2"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:

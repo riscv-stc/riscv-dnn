@@ -23,7 +23,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    maxpool(&dstMat, &srcMat, &sst);
+    for (int i = 0; i < NLOOPS; i++) {
+        maxpool(&dstMat, &srcMat, &sst);
+    }
 
     PERF_END();
 

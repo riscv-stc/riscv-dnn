@@ -30,7 +30,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    conv(&dstMat, &srcMat, &weightMat, &srcPad, &sst);
+    for (int i = 0; i < NLOOPS; i++) {
+        conv(&dstMat, &srcMat, &weightMat, &srcPad, &sst);
+    }
 
     PERF_END();
 

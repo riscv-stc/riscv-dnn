@@ -64,4 +64,8 @@
 
 #define OUT_SIZE (HOUT * WOUT * COUT)
 
+#ifndef NLOOPS
+#define NLOOPS 1
+#endif
+
 #endif

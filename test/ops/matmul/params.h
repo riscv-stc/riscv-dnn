@@ -15,4 +15,8 @@
 
 #define OUT_SIZE  (M * N)
 
+#ifndef NLOOPS
+#define NLOOPS 1
+#endif
+
 #endif
