@@ -47,7 +47,7 @@ static inline int avgpool(Tensor *dst, Tensor *src, Config *ss)
           int srcOffset =(sh0 + hStart - pad_t) * win * cin + (sw0 + wStart- pad_l) * cin;
           float numValidRecip = 1.0 / (hValid * (wEnd - wStart));
           for (int kc = 0; kc < cin; kc += vlmax) { // complete vlmax point one time
-            int vl = min(vlmax, cin - kc);
+            int vl = vsetvl_e16m1(cin - kc);
             vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
             int srcOffset0 = srcOffset + kc;
             for (int m = hStart; m < hEnd; m++) {
@@ -102,7 +102,7 @@ static inline int maxpool(Tensor *dst, Tensor *src, Config *ss)
         for (int j = 0; j < wout; j++) {
           int sw0 = j * stride_w;
           for (int kc = 0; kc < cin; kc += vlmax) { // complete vlmax point one time
-            int vl = min(vlmax, cin - kc);
+            int vl = vsetvl_e16m1(cin - kc);
             vfloat16m1_t _max = vfmv_v_f_f16m1(0.f, vl);
             int numValid = 0;
             for (int m = 0; m < kh; m++) {

@@ -55,7 +55,7 @@ static inline int exp(Tensor *dst, Tensor *src)
     int32_t tmp[VLENB*sizeof(int32_t)];
 
     for (int i = 0; i < src->size; i+=vlmax) {
-        int vl = min(src->size - i, vlmax);
+        int vl = vsetvl_e16m1(src->size - i);
         vfloat16m1_t _src = vle16_v_f16m1(psrc + i, vl);
         vfloat32m2_t _src_f32 = vfwcvt_f_f_v_f32m2(_src, vl);
 

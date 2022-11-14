@@ -16,7 +16,7 @@ static inline int relu(Tensor *dst, Tensor *src, float16_t base)
     int vlmax = VLENB * 8 / src->elemsize;
 
     for(int i = 0; i < src->size; i += vlmax) {
-        int vl = min(vlmax, src->size - i);
+        int vl = vsetvl_e16m8(src->size - i);
         vfloat16m8_t _src = vle16_v_f16m8(psrc, vl);
         psrc += vl;
         vfloat16m8_t _dst = vfmax_vf_f16m8(_src, base, vl);

@@ -34,7 +34,7 @@ static int batchnorm2(Tensor *dst, Tensor *src, Tensor *mean, Tensor *variance, 
     int vlmax = VLENB / 2;
 
     for(int i = 0; i < c; i += vlmax) {
-        int vl = min(vlmax, c - i);
+        int vl = vsetvl_e16m1(c - i);
         vfloat16m1_t _mean = vle16_v_f16m1(pmean + i, vl);
         vfloat16m1_t _var = vle16_v_f16m1(pvar + i, vl);
         _var = vfadd_vf_f16m1(_var, epsilon, vl);
@@ -82,7 +82,7 @@ static inline int batchnorm(Tensor *dst, Tensor *src, Tensor *alpha, Tensor *bet
     int vlmax = VLENB * 4 / 2;
 
     for(int i = 0; i < c; i += vlmax) {
-        int vl = min(vlmax, c - i);
+        int vl = vsetvl_e16m4(c - i);
         vfloat16m4_t _alpha = vle16_v_f16m4(palpha + i, vl);
         vfloat16m4_t _beta_f16 = vle16_v_f16m4(pbeta + i, vl);
         vfloat32m8_t _beta_f32 = vfwcvt_f_f_v_f32m8(_beta_f16, vl);

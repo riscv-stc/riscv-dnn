@@ -20,7 +20,7 @@ static inline int add(Tensor *dst, Tensor *src1, Tensor *src2)
 #endif
 
     for(int i = 0; i < src1->size; i += vlmax) {
-        int vl = min(vlmax, src1->size - i);
+        int vl = vsetvl_e16m8(src1->size - i);
 #ifndef USE_FP32
         vfloat16m8_t _src1 = vle16_v_f16m8(psrc1, vl);
         psrc1 += vl;

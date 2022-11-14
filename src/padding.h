@@ -27,7 +27,7 @@ static inline int padding(Tensor *dst, Tensor *src, Config *ss)
 
     for (int i = 0; i < hin; i++) {
         for (int k = 0; k < tmp; k += vlmax) {
-            unsigned vl = min(vlmax, tmp - k);
+            unsigned vl = vsetvl_e16m1(tmp - k);
             vfloat16m1_t _data = vle16_v_f16m1(psrc, vl);
             vse16_v_f16m1(pdst, _data, vl);
             psrc += vl;
