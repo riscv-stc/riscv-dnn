@@ -36,7 +36,7 @@ ifeq (x$(SIM), xspike)
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	defines += -D__SPIKE__
 else ifeq (x$(SIM), xgem5)
-	SIM_CMD ?= $(GEM5)/build/RISCV/gem5.opt --listener-mode=off $(GEM5_OPTS) \
+	SIM_CMD ?= $(GEM5)/build/RISCV/gem5.opt --outdir=build/$(NUM)/m5out --listener-mode=off $(GEM5_OPTS) \
 		$(GEM5)/configs/example/fs.py --signature=build/$(NUM)/gem5.sig \
 		   --cpu-type=StcBoom --bp-type=LTAGE --num-cpu=${NCORES} \
 		   --mem-channels=1 --mem-size=3072MB \
