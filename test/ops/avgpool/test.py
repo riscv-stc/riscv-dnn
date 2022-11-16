@@ -12,7 +12,7 @@ from work import do_test
 
 
 title = "Diffent Optimization levels for conv operator"
-opt_levels = {"loop=1":"", "loop=2":"-DNLOOPS=2"}
+opt_levels = {"loop=1":"-O2", "loop=2":"-O2 -DNLOOPS=2"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:
@@ -85,14 +85,10 @@ if __name__ == "__main__":
         (16,  16,  8, 3, 3, 2, 2),
         (32,  32,  8, 3, 3, 1, 1),
         (32,  32,  8, 3, 3, 2, 2),
-        (128, 128, 8, 3, 3, 1, 1),
-        (128, 128, 8, 3, 3, 2, 2),
         (16,  16,  64, 3, 3, 1, 1),
         (16,  16,  64, 3, 3, 2, 2),
         (32,  32,  64, 3, 3, 1, 1),
         (32,  32,  64, 3, 3, 2, 2),
-        (128, 128, 64, 3, 3, 1, 1),
-        (128, 128, 64, 3, 3, 2, 2),
     )
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')

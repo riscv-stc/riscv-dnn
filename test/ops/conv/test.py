@@ -14,7 +14,8 @@ from work import do_test
 title = "Diffent Optimization levels for conv operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+# opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+opt_levels = {"loop=1":"-O2 -D__RVM__", "loop=2":"-O2 -D__RVM__ -DNLOOPS=2"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:
