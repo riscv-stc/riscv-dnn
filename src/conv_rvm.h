@@ -1,5 +1,5 @@
-#ifndef __CONV_H__
-#define __CONV_H__
+#ifndef __CONV_RVM_H__
+#define __CONV_RVM_H__
 
 #include "tensor.h"
 #include <stddef.h>

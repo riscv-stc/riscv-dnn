@@ -15,7 +15,7 @@ title = "Diffent Optimization levels for conv operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
 # opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
-opt_levels = {"loop=1":"-O2 -D__RVM__", "loop=2":"-O2 -D__RVM__ -DNLOOPS=2"}
+opt_levels = {"loop=1":"-O2 -D__RVM__", "loop=2":"-O2 -D__RVM__ -DNLOOPS=2", "im2col":"-O2 -D__IM2COL__"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:
@@ -92,6 +92,7 @@ if __name__ == "__main__":
         (8, 8, 8, 8, 3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
         (8, 8, 8, 8, 3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
         (8, 8, 8, 8, 3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        (8, 8, 8, 8, 3, 3,   2, 2,  2, 2,   1, 1, 1, 1),
         (16, 16, 16, 16, 3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
         (16, 16, 16, 16, 3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
         (16, 16, 16, 16, 3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
