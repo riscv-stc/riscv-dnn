@@ -30,7 +30,7 @@ static inline int avgpool(Tensor *dst, Tensor *src, Config *ss)
 
     assert(cout == cin);
 
-    int vlmax = VLENB / 2;
+    int vlmax = VLENB *  8 / 2;
 
     float16_t *psrc = (float16_t *)src->data;
     float16_t *pdst = (float16_t *)dst->data;
@@ -47,21 +47,21 @@ static inline int avgpool(Tensor *dst, Tensor *src, Config *ss)
           int srcOffset =(sh0 + hStart - pad_t) * win * cin + (sw0 + wStart- pad_l) * cin;
           float numValidRecip = 1.0 / (hValid * (wEnd - wStart));
           for (int kc = 0; kc < cin; kc += vlmax) { // complete vlmax point one time
-            int vl = vsetvl_e16m1(cin - kc);
-            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
+            int vl = vsetvl_e16m8(cin - kc);
+            vfloat16m8_t _sum = vfmv_v_f_f16m8(0.f, vl);
             int srcOffset0 = srcOffset + kc;
             for (int m = hStart; m < hEnd; m++) {
               int srcOffset1 = srcOffset0;
               for (int n = wStart; n < wEnd; n++) {
-                vfloat16m1_t _data = vle16_v_f16m1(psrc + srcOffset1, vl);
-                _sum = vfadd_vv_f16m1(_sum, _data, vl);
+                vfloat16m8_t _data = vle16_v_f16m8(psrc + srcOffset1, vl);
+                _sum = vfadd_vv_f16m8(_sum, _data, vl);
                 srcOffset1 += cin;
               }
             srcOffset0 += win * cin;
             }
-            vfloat16m1_t _avg = vfmul_vf_f16m1(_sum, numValidRecip, vl);
+            vfloat16m8_t _avg = vfmul_vf_f16m8(_sum, numValidRecip, vl);
             unsigned dstOffset = i * wout * cin + j * cin + kc;
-            vse16_v_f16m1(pdst + dstOffset, _avg, vl);
+            vse16_v_f16m8(pdst + dstOffset, _avg, vl);
           }
         }
       }
@@ -102,8 +102,8 @@ static inline int maxpool(Tensor *dst, Tensor *src, Config *ss)
         for (int j = 0; j < wout; j++) {
           int sw0 = j * stride_w;
           for (int kc = 0; kc < cin; kc += vlmax) { // complete vlmax point one time
-            int vl = vsetvl_e16m1(cin - kc);
-            vfloat16m1_t _max = vfmv_v_f_f16m1(0.f, vl);
+            int vl = vsetvl_e16m8(cin - kc);
+            vfloat16m8_t _max = vfmv_v_f_f16m8(0.f, vl);
             int numValid = 0;
             for (int m = 0; m < kh; m++) {
               int sy = sh0 + m;
@@ -116,17 +116,17 @@ static inline int maxpool(Tensor *dst, Tensor *src, Config *ss)
                   continue;
                 }
                 unsigned srcOffset = (sy - pad_t) * win * cin + (sx - pad_l) * cin + kc;
-                vfloat16m1_t _data = vle16_v_f16m1(psrc + srcOffset, vl);
+                vfloat16m8_t _data = vle16_v_f16m8(psrc + srcOffset, vl);
                 if (numValid == 0) {
                   _max = _data;
                 } else {
-                  _max = vfmax_vv_f16m1(_max, _data, vl);
+                  _max = vfmax_vv_f16m8(_max, _data, vl);
                 }
                 numValid++;
               }
             }
             unsigned dstOffset = i * wout * cin + j * cin + kc;
-            vse16_v_f16m1(pdst + dstOffset, _max, vl);
+            vse16_v_f16m8(pdst + dstOffset, _max, vl);
           }
         }
       }

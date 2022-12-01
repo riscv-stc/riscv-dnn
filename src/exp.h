@@ -65,8 +65,8 @@ static inline int exp(Tensor *dst, Tensor *src)
         vfloat32m2_t _dx = vfnmsac_vf_f32m2(_src_f32, ln2_h, _n_h, vl); // _dx = x - _n_h*ln2
 
         // _n_int32 + 25 作为索引取index值
-        vse32_v_i32m2(tmp, vadd_vx_i32m2(_n_int32, offset, vl), vl);
-        vuint32m2_t _n_uint32_25 = vle32_v_u32m2((uint32_t *)tmp, vl);
+        _n_h = vfadd_vf_f32m2(_n_h, offset_fp32, vl);
+        vuint32m2_t _n_uint32_25 = vfcvt_xu_f_v_u32m2(_n_h, vl);
         _n_uint32_25 = vmul_vx_u32m2(_n_uint32_25, 4, vl);
         vfloat32m2_t _der_6 = vloxei32_v_f32m2(der_6, _n_uint32_25, vl);
         vfloat32m2_t _der_2 = vloxei32_v_f32m2(der_2, _n_uint32_25, vl);
