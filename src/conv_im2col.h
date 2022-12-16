@@ -80,18 +80,19 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Tensor *
             asm volatile("msetsk x0, %[rs1], %[rs2]"
                         : 
                         : [rs1]"r"(hin_pos <<  16 | (win_pos & 0xffff)), [rs2]"r"((skw * dilation_w) << 16 | wout_pos));
-
+            float16_t *_prsc1 = psrc1+hin_pos*win*cin+win_pos*cin;
+            float16_t *_psrc2 = psrc2+skh*kw*cin*cout+skw*cin*cout+j;
             for (int skc = 0; skc < cin;  skc+=tilek) {
                 asm volatile("msettilek %[rd], %[rs1]"
                             : [rd]"=r"(tilek)
                             : [rs1]"r"(cin-skc));
                 asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(psrc1+hin_pos*win*cin+win_pos*cin+skc), [rs2]"r"(cin*dataSize));
+                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(cin*dataSize));
                 
                 asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(psrc2+skh*kw*cin*cout+skw*cin*cout+skc*cout+j), [rs2]"r"(cout*dataSize));
+                            :[rs1]"r"(_psrc2+skc*cout), [rs2]"r"(cout*dataSize));
                 asm volatile("mfwma.mm acc0, tr0, tr1");
             }
           }

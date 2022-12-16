@@ -35,7 +35,7 @@ int main(int argc, char **argv)
     }
 
     PERF_END();
-
+    asm("fence.i");
     if (DEBUG_PRINT) {
         printf("Out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 sst.hout, sst.wout, sst.cout);
