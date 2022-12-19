@@ -13,14 +13,10 @@ static inline int add(Tensor *dst, Tensor *src1, Tensor *src2)
     float16_t *psrc1 = (float16_t *)src1->data;
     float16_t *psrc2 = (float16_t *)src2->data;
     float16_t *pdst = (float16_t *)dst->data;
-#ifndef USE_FP32
-    int vlmax = VLENB * 8 / src1->elemsize;
-#else
-    int vlmax = VLENB * 4 / src1->elemsize;
-#endif
 
-    for(int i = 0; i < src1->size; i += vlmax) {
-        int vl = vsetvl_e16m8(src1->size - i);
+    int vl;
+    for(int i = 0; i < src1->size; i += vl) {
+        vl = vsetvl_e16m8(src1->size - i);
 #ifndef USE_FP32
         vfloat16m8_t _src1 = vle16_v_f16m8(psrc1, vl);
         psrc1 += vl;

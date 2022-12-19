@@ -14,12 +14,12 @@ int softmax(Tensor *dst, Tensor *src)
     float32_t *psrc = (float32_t *)src->data;
     float32_t *pdst = (float32_t *)dst->data;
 
-    int vlmax = VLENB * 8 / src->elemsize;
+    int vl;
 
     float32_t neg_inf = *(float32_t*)&neg_inf_32;
     vfloat32m1_t _maxium = vfmv_v_f_f32m1(neg_inf, 1); 
-    for (int i = 0; i < src->size; i += vlmax) {
-        int vl = vsetvl_e32m8(src->size - i);
+    for (int i = 0; i < src->size; i += vl) {
+        vl = vsetvl_e32m8(src->size - i);
         vfloat32m8_t _src = vle32_v_f32m8(psrc + i, vl);
         _maxium = vfredmax_vs_f32m8_f32m1(_maxium, _src, _maxium, vl);
     }
@@ -27,7 +27,7 @@ int softmax(Tensor *dst, Tensor *src)
 
     vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, 1);
     
-    for (int i = 0; i < src->size; i += vlmax) {
+    for (int i = 0; i < src->size; i += vl) {
         int vl = vsetvl_e32m8(src->size - i);
         vfloat32m8_t _src = vle32_v_f32m8(psrc + i, vl);
         vfloat32m8_t _diff = vfsub_vf_f32m8(_src, pmax, vl); // src-max
@@ -38,7 +38,7 @@ int softmax(Tensor *dst, Tensor *src)
     float32_t psum = vfmv_f_s_f32m1_f32(_sum);
     asm("fence");
 
-    for (int i = 0; i < src->size; i += vlmax) {
+    for (int i = 0; i < src->size; i += vl) {
         int vl = vsetvl_e32m8(src->size - i);
         vfloat32m8_t _src = vle32_v_f32m8(pdst + i, vl);
         vfloat32m8_t _prob = vfdiv_vf_f32m8(_src, psum, vl);

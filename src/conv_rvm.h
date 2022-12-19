@@ -32,8 +32,6 @@ static inline int conv_matrix(Tensor *dst, Tensor *src, Tensor *weight, Tensor *
     int wout = ss->wout;
     int cout = ss->cout;
 
-    int vlmax = VLENB * 4 / 2;
-
     float16_t *psrc = (float16_t *)src->data;
     float16_t *psrcPad = (float16_t *)srcPad->data;
     memset(psrcPad, 0, hout * wout * kh * kw * cin * sizeof(float16_t));
