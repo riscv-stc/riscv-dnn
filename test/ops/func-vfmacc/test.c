@@ -45,6 +45,15 @@ int main(int argc, char **argv)
     PERF_BEGIN();
     for(int i = 0; i < NLOOPS; i++) {
         asm("vfmacc.vv v3, v1, v2");
+        asm("vfmacc.vv v4, v1, v2");
+        asm("vfmacc.vv v5, v1, v2");
+        asm("vfmacc.vv v6, v1, v2");
+        asm("vfmacc.vv v7, v1, v2");
+        asm("vfmacc.vv v8, v1, v2");
+        asm("vfmacc.vv v9, v1, v2");
+        asm("vfmacc.vv v10, v1, v2");
+        asm("vfmacc.vv v11, v1, v2");
+        asm("vfmacc.vv v12, v1, v2");  
     }
     PERF_END();
 

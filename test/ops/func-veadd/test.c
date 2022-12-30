@@ -45,6 +45,15 @@ int main(int argc, char **argv)
     PERF_BEGIN();
     for(int i = 0; i < NLOOPS; i++) {
         asm("vfadd.vv v3, v1, v2");
+        asm("vfadd.vv v4, v1, v2");
+        asm("vfadd.vv v5, v1, v2");
+        asm("vfadd.vv v6, v1, v2");
+        asm("vfadd.vv v7, v1, v2");
+        asm("vfadd.vv v8, v1, v2");
+        asm("vfadd.vv v9, v1, v2");
+        asm("vfadd.vv v10, v1, v2");
+        asm("vfadd.vv v11, v1, v2");
+        asm("vfadd.vv v12, v1, v2");
     }
     PERF_END();
 

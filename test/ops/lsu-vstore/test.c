@@ -42,6 +42,33 @@ int main(int argc, char **argv)
         asm volatile("vse16.v v1, (%[rs1])"
                   :
                   :[rs1]"r"(dstData+i*64));
+         asm volatile("vse16.v v2, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+1)*64));
+        asm volatile("vse16.v v3, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+2)*64));
+        asm volatile("vse16.v v4, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+3)*64));
+        asm volatile("vse16.v v5, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+4)*64));
+        asm volatile("vse16.v v6, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+5)*64));
+        asm volatile("vse16.v v7, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+6)*64));
+        asm volatile("vse16.v v8, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+7)*64));
+        asm volatile("vse16.v v9, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+8)*64));
+        asm volatile("vse16.v v10, (%[rs1])"
+                  :
+                  :[rs1]"r"(dstData+(i+9)*64));
     }
     PERF_END();
 
