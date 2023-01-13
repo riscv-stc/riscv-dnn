@@ -81,10 +81,10 @@ def get_golden_check(num, layer, acc):
         with tf.compat.v1.Session() as sess:
             softmax_tensor = sess.graph.get_tensor_by_name(layer0)
             predictions = sess.run(softmax_tensor, {"input_tensor:0": x})
-            sig_addr = get_sig_addr("test.map", layername+"_data")
+            sig_addr = get_sig_addr(f"build/{pic_num}/test.map", layername+"_data")
             start_offset = sig_addr - begin_addr
             print(layername, "addr: ", hex(sig_addr), "offset: ", start_offset)
-            result = from_txt(f'{simulator}.sig', predictions, start_offset)
+            result = from_txt(f'build/{pic_num}/{simulator}.sig', predictions, start_offset)
             os.makedirs('check', exist_ok=True)
             check_result = check_to_txt( predictions, result, f'check/{layername}.data', 'np.allclose( result, golden, rtol=1e-2, atol=1e-2, equal_nan=True)' )
             print(f"> {num}, check result: {check_result}")
@@ -95,16 +95,18 @@ def get_golden_check(num, layer, acc):
 
 if __name__ == "__main__" :
     ## compile
-    for pic_num in range(0, 65):
-        os.system(f"make clean && make run SIM={simulator} DEFS='{defs} -DN={pic_num}'")
-        # begin_addr = get_sig_addr("test.map", "begin_signature")
-        # print("begin_signature: ", hex(begin_addr))
+    for pic_num in range(0, 1):
+        os.system(f"rm -rf build/{pic_num} && mkdir -p build/{pic_num}")
+        os.system(f"make clean && make DEFS='{defs} -DN={pic_num}' run SIM={simulator} NUM={pic_num}  > build/{pic_num}/test.log 2>&1")
 
-        # ## check
-        # tf.disable_eager_execution()
-        # # set number pictures to predict
-        # BATCH = 1
-        # x = prepare_input(pic_num)
+        begin_addr = get_sig_addr(f"build/{pic_num}/test.map", "begin_signature")
+        print("begin_signature: ", hex(begin_addr))
+
+        ## check
+        tf.disable_eager_execution()
+        # set number pictures to predict
+        BATCH = 1
+        x = prepare_input(pic_num)
 
         # stage 1
         # get_golden_check(2,  "resnet_model/conv2d/Conv2D", 7*7*3)
@@ -270,5 +272,5 @@ if __name__ == "__main__" :
         # get_golden_check(142, "resnet_model/Mean", 200)
         # get_golden_check(143, "resnet_model/dense/MatMul", 200)
         # get_golden_check(144, "resnet_model/dense/BiasAdd", 200)
-        # get_golden_check(145, "softmax_tensor_fp16", 200)
+        get_golden_check(145, "softmax_tensor_fp16", 200)
 

@@ -15,6 +15,10 @@
 #include "relu.h"
 #include "softmax.h"
 
+#include "conv_bn_relu_rvm.h"
+#include "conv_add_bn_relu_rvm.h"
+#include "pooling_bn_relu.h"
+
 #include "resnet50_parameters.h"
 
 // #define conv_base(conv_out, conv_in, pweight, sst) \
@@ -141,7 +145,7 @@ uint8_t relu_tmp_data[56*56*256*sizeof(float16_t)];
 uint8_t dense_tmp_data[2048*1001*sizeof(float16_t)];
 uint8_t bias_tmp_data[1001*sizeof(float16_t)];
 uint8_t bias_add_fp16_tmp_data[1001*sizeof(float16_t)];
-uint8_t bias_add_fp32_tmp_data[1001*sizeof(float32_t)];
-uint8_t softmax_tensor_fp32_data[1001*sizeof(float32_t)];
+uint32_t bias_add_fp32_tmp_data[1001*sizeof(float32_t)] __attribute__((aligned(64)));
+uint32_t softmax_tensor_fp32_data[1001*sizeof(float32_t)] __attribute__((aligned(64)));
 
 #endif

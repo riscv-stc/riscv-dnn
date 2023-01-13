@@ -2,6 +2,7 @@
 
 #include "resnet.h"
 
+
 int main()
 {   
     printf("begin %d\n", N);
@@ -36,22 +37,16 @@ int resnet50_base(void *indata)
 
     // stage0: maxpool, SAME
     config_pool(stage0_maxpool, stage0_conv.hout, stage0_conv.wout, stage0_conv.cout, stage0_conv.cout, 0, 1, 0, 1, 3, 3, 2, 2)
-    tensor_new_3d(stage0_maxpool_out, stage0_maxpool.hout, stage0_maxpool.wout, stage0_maxpool.cout, sizeof(float16_t), max_pooling2d_data);
-    maxpool(&stage0_maxpool_out, &stage0_conv_out, &stage0_maxpool);
-
     tensor_new_1d(stage0_alpha, stage0_maxpool.cout, sizeof(float16_t), batch_normalization_new_alpha_data);
     tensor_new_1d(stage0_beta, stage0_maxpool.cout, sizeof(float16_t), batch_normalization_new_beta_data);
-    tensor_new_3d(stage0_batchnorm_out, stage0_maxpool.hout, stage0_maxpool.wout, stage0_maxpool.cout, sizeof(float16_t), batch_normalization_data);
-    batchnorm(&stage0_batchnorm_out, &stage0_maxpool_out, &stage0_alpha, &stage0_beta);
-
     tensor_new_3d(stage0_relu_out, stage0_maxpool.hout, stage0_maxpool.wout, stage0_maxpool.cout, sizeof(float16_t), Relu_data);
-    relu(&stage0_relu_out, &stage0_batchnorm_out, (float16_t)0);
 
+    maxpool_bn_relu(&stage0_relu_out, &stage0_conv_out, &stage0_alpha, &stage0_beta, &stage0_maxpool);
     if (DEBUG_PRINT) {
         printf("stage0_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage0_maxpool.hout, stage0_maxpool.wout, stage0_maxpool.cout);
     }
-
+    
 /*
  * stage 1 
 */
@@ -110,7 +105,7 @@ int resnet50_base(void *indata)
         printf("stage1_9_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage1_conv10.hout, stage1_conv10.wout, stage1_conv10.cout);
     }
-
+    
 /*
  * stage 2
 */
@@ -186,6 +181,7 @@ int resnet50_base(void *indata)
         printf("stage2_21_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage2_conv22.hout, stage2_conv22.wout, stage2_conv22.cout);
     }
+    
 /*
  * stage 3
 */
@@ -295,7 +291,7 @@ int resnet50_base(void *indata)
         printf("stage3_39_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage3_conv41.hout, stage3_conv41.wout, stage3_conv41.cout);
     }
-
+    
 /*
  * stage 4
 */
@@ -353,7 +349,7 @@ int resnet50_base(void *indata)
         printf("stage4_48_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout);
     }
-
+    
 /**
  * end
  * 
@@ -363,7 +359,7 @@ int resnet50_base(void *indata)
     avgpool(&stage5_avgpool_out, &stage4_48_relu_out, &stage5_avgpool);
     if (DEBUG_PRINT) {
         printf("stage5_avgpool_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage5_avgpool_out.h, stage5_avgpool_out.w, stage5_avgpool_out.cin);
+                stage5_avgpool_out.shape[0], stage5_avgpool_out.shape[1], stage5_avgpool_out.shape[2]);
     }
 
     tensor_new_2d(stage5_avgpool_1d, 1, stage5_avgpool.hout * stage5_avgpool.wout * stage5_avgpool.cout, sizeof(float16_t), Mean_data);
@@ -372,7 +368,7 @@ int resnet50_base(void *indata)
     matmul(&stage5_matmul_out, &stage5_avgpool_1d, &stage5_dense_kernel_f16);
     if (DEBUG_PRINT) {
         printf("stage5_matmul_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage5_matmul_out.h, stage5_matmul_out.w, stage5_matmul_out.cin);
+                stage5_matmul_out.shape[0], stage5_matmul_out.shape[1], stage5_matmul_out.shape[2]);
     }
 
     tensor_new_2d(stage5_bias_f32, 1, 1001, sizeof(float32_t), dense_bias_data);
@@ -381,20 +377,20 @@ int resnet50_base(void *indata)
     tensor_new_2d(stage5_bias_add_out, 1, 1001, sizeof(float16_t), bias_add_fp16_tmp_data);
     add(&stage5_bias_add_out, &stage5_matmul_out, &stage5_bias_f16);
     if (DEBUG_PRINT) {
-        printf("stage5_bias_add_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage5_bias_add_out.h, stage5_bias_add_out.w, stage5_bias_add_out.cin);
+        printf("stage5_bias_add_out shape: \n\t(hout, wout, cout) = (%d, %d)\n",
+                stage5_bias_add_out.shape[0], stage5_bias_add_out.shape[1]);
     }
+    
 
     tensor_new_2d(stage5_bias_add_out_f32, 1, 1001, sizeof(float32_t), bias_add_fp32_tmp_data);
     cast_f16_to_f32(&stage5_bias_add_out_f32, &stage5_bias_add_out);
-
     tensor_new_2d(stage5_softmax_out_f32, 1, 1001, sizeof(float32_t), softmax_tensor_fp32_data);
     softmax(&stage5_softmax_out_f32, &stage5_bias_add_out_f32);
     if (DEBUG_PRINT) {
         printf("stage5_softmax_out_f32 shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage5_softmax_out_f32.h, stage5_softmax_out_f32.w, stage5_softmax_out_f32.cin);
+                stage5_softmax_out_f32.shape[0], stage5_softmax_out_f32.shape[1], stage5_softmax_out_f32.shape[2]);
     }
-    
+
     tensor_new_2d(stage5_softmax_out_f16, 1, 1001, sizeof(float16_t), softmax_tensor_fp16_data);
     cast_f32_to_f16(&stage5_softmax_out_f16, &stage5_softmax_out_f32);
 
@@ -413,62 +409,61 @@ int resnet50_base(void *indata)
 
 int conv_bn_relu(Tensor *relu_out, Tensor *conv_in, void *pweight, void *palpha, void *pbeta, Config sst)
 {
+#ifndef __RVM__
     tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout, sizeof(float16_t), pweight);
     tensor_new_3d(conv_out, sst.hout, sst.wout, sst.cout, sizeof(float16_t), conv_tmp_data);
-#ifndef __RVM__
     memset(conv_pad_tmp_data, 0, (sst.hin+sst.top+sst.bottom)*(sst.win+sst.left+sst.right)*sst.cin*sizeof(float16_t));// conv_pad_tmp_data must be clear
     tensor_new_3d(conv_in_pad, sst.hin+sst.top+sst.bottom, sst.win+sst.left+sst.right, sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#else
-    tensor_new_2d(conv_in_pad, sst.hout*sst.wout, sst.kh*sst.kw*sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#endif
     conv(&conv_out, conv_in, &conv_kernel_f16, &conv_in_pad, &sst);
-
     tensor_new_1d(alpha, sst.cout, sizeof(float16_t), palpha);
     tensor_new_1d(beta, sst.cout, sizeof(float16_t), pbeta);
     tensor_new_3d(batchnorm_out, sst.hout, sst.wout, sst.cout, sizeof(float16_t), batchnorm_tmp_data);
     batchnorm(&batchnorm_out, &conv_out, &alpha, &beta);
-
     relu(relu_out, &batchnorm_out, (float16_t)0);
+#else
+    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout, sizeof(float16_t), pweight);
+    tensor_new_1d(alpha, sst.cout, sizeof(float16_t), palpha);
+    tensor_new_1d(beta, sst.cout, sizeof(float16_t), pbeta);
+    conv_bn_relu_rvm(relu_out, conv_in, &conv_kernel_f16, &alpha, &beta, &sst);
+#endif
     return 0;
 }
 
 int conv_base(Tensor *conv_out, Tensor *conv_in, void *pweight, Config sst)
 {
 
-    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout,sizeof(float16_t), pweight);
 #ifndef __RVM__
+    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout,sizeof(float16_t), pweight);
     memset(conv_pad_tmp_data, 0, (sst.hin+sst.top+sst.bottom)*(sst.win+sst.left+sst.right)*sst.cin*sizeof(float16_t));// conv_pad_tmp_data must be clear
     tensor_new_3d(conv_in_pad, sst.hin+sst.top+sst.bottom, sst.win+sst.left+sst.right, sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#else
-    tensor_new_2d(conv_in_pad, sst.hout*sst.wout, sst.kh*sst.kw*sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#endif
     conv(conv_out, conv_in, &conv_kernel_f16, &conv_in_pad, &sst);
-
+#else
+    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout,sizeof(float16_t), pweight);
+    conv(conv_out, conv_in, &conv_kernel_f16, NULL, &sst);
+#endif
     return 0;
 
 }
 
 int conv_add_bn_relu(Tensor *relu_out, Tensor *add_out, Tensor *conv_in, Tensor *add_in, void *pweight, void *palpha, void *pbeta, Config sst)
 {
-    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout, sizeof(float16_t), pweight);
-    
-    tensor_new_3d(conv_out, sst.hout, sst.wout, sst.cout, sizeof(float16_t), conv_tmp_data);
 #ifndef __RVM__
+    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout, sizeof(float16_t), pweight);
+    tensor_new_3d(conv_out, sst.hout, sst.wout, sst.cout, sizeof(float16_t), conv_tmp_data);
     memset(conv_pad_tmp_data, 0, (sst.hin+sst.top+sst.bottom)*(sst.win+sst.left+sst.right)*sst.cin*sizeof(float16_t));// conv_pad_tmp_data must be clear
     tensor_new_3d(conv_in_pad, sst.hin+sst.top+sst.bottom, sst.win+sst.left+sst.right, sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#else
-    tensor_new_2d(conv_in_pad, sst.hout*sst.wout, sst.kh*sst.kw*sst.cin, sizeof(float16_t), conv_pad_tmp_data);
-#endif
     conv(&conv_out, conv_in, &conv_kernel_f16, &conv_in_pad, &sst);
-
     add(add_out, &conv_out, add_in);
-
     tensor_new_1d(alpha, sst.cout, sizeof(float16_t), palpha);
     tensor_new_1d(beta, sst.cout, sizeof(float16_t), pbeta);
     tensor_new_3d(batchnorm_out, sst.hout, sst.wout, sst.cout, sizeof(float16_t), batchnorm_tmp_data);
     batchnorm(&batchnorm_out, add_out, &alpha, &beta);
-
     relu(relu_out, &batchnorm_out, (float16_t)0);
-
+#else
+    tensor_new_4d(conv_kernel_f16, sst.kh, sst.kw, sst.cin, sst.cout, sizeof(float16_t), pweight);
+    tensor_new_1d(alpha, sst.cout, sizeof(float16_t), palpha);
+    tensor_new_1d(beta, sst.cout, sizeof(float16_t), pbeta);
+    conv_add_bn_relu_rvm(relu_out, add_out, conv_in, &conv_kernel_f16, add_in, &alpha, &beta, &sst);
+#endif
     return 0;
 }
