@@ -7,7 +7,7 @@
 #include "mme.h"
 #include "matmul.h"
 
-static inline int conv_add_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Tensor *addsrc, Tensor *alpha, Tensor *beta, Config *ss)
+static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src, Tensor *weight, Tensor *addsrc, Tensor *alpha, Tensor *beta, Config *ss)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -34,8 +34,9 @@ static inline int conv_add_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Ten
     int dataSize = sizeof(float16_t);
     float16_t *psrc1 = (float16_t *)src->data;
     float16_t *psrc2 = (float16_t *)weight->data;
+    float16_t *paddout = (float16_t *)addout->data;
     float16_t *pdst = (float16_t *)dst->data;
-    float32_t *paddsrc = (float32_t *)addsrc->data;
+    float16_t *paddsrc = (float16_t *)addsrc->data;
     float16_t *palpha = (float16_t *)alpha->data;
     float16_t *pbeta = (float16_t *)beta->data;
 
@@ -101,11 +102,17 @@ static inline int conv_add_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Ten
           }
         }
 
+        asm volatile("mfncvtc.f.fw.m acc1, acc0");
+
         // add
-        asm volatile("mlce32.m acc1, (%[rs1]), %[rs2]"
+        asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
                       :
-                      :[rs1]"r"(paddsrc+i*cout+j), [rs2]"r"(cout*4));
-        asm volatile("mfwaddc.mm acc0, acc1");
+                      :[rs1]"r"(paddsrc+i*cout+j), [rs2]"r"(cout*dataSize));
+        asm volatile("mfaddc.mm acc0, acc1");
+
+        asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
+                      :
+                      :[rs1]"r"(paddout+i*cout+j), [rs2]"r"(cout*dataSize));
         
         // batchnormal
         int vl = vsetvl_e16m1(tilen);
@@ -115,14 +122,14 @@ static inline int conv_add_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Ten
         asm volatile("vle16.v v16, (%[rs1])"
                     : 
                     : [rs1]"r"(pbeta + j));
-        asm volatile("mfwmacccr.mv acc0, v8, v16");
-        asm volatile("mfncvtc.f.fw.m acc1, acc0");
+        asm volatile("mfmacccr.mv acc0, v8, v16");
+        
         
         // relu
         for (int k = 0; k < tilem; k+=8) {
           int lmul = min(8, tilem-k);
           vl = vsetvl_e16m8(tilen*lmul);
-          asm volatile("mmvcr.v.m v24, acc1, %[rs2]"
+          asm volatile("mmvcr.v.m v24, acc0, %[rs2]"
                         :
                         : [rs2]"r"(k));
           asm volatile("vfmax.vf v0, v24, %[frs2]"

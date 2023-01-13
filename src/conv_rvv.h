@@ -38,7 +38,7 @@ static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
     if (pad_l + pad_r + pad_t + pad_b) {
         float16_t *psrcPad = (float16_t *)srcPad->data;
         psrcPad += pad_t * (win + pad_l + pad_r) * cin + pad_l * cin;  
-        for (int i = 0; i < hin; i++)
+        for (int i = 0; i < hin; i++) {
             for (int j = 0; j < win * cin; j += vl) {
                 vl = vsetvl_e16m4(win * cin - j);
                 vfloat16m4_t _data = vle16_v_f16m4(psrc, vl);

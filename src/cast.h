@@ -30,7 +30,7 @@ static inline int cast_f16_to_f32(Tensor *dst, Tensor *src)
 
     int vl;
     for(int i = 0; i < src->size; i += vl) {
-        int vl = vsetvl_e16m4(src->size - i);
+        vl = vsetvl_e16m4(src->size - i);
         vfloat16m4_t _src = vle16_v_f16m4(psrc, vl);
         psrc += vl;
         vfloat32m8_t _dst = vfwcvt_f_f_v_f32m8(_src, vl);

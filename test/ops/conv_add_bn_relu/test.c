@@ -16,6 +16,8 @@ INCBIN(betaData, "beta.bin", ".scdata.params");
 
 uint8_t dstData[OUT_SIZE * sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 
+uint8_t addoutData[OUT_SIZE * sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+
 
 int main(int argc, char **argv)
 {
@@ -25,15 +27,16 @@ int main(int argc, char **argv)
 
     tensor_new_2d(srcMat, HIN, WIN * CIN, sizeof(float16_t), srcData);
     tensor_new_2d(weightMat, KH * KW * CIN, COUT, sizeof(float16_t), weightData);
-    tensor_new_2d(addsrcMat, HOUT * WOUT, COUT, sizeof(float32_t), addsrcData);
+    tensor_new_2d(addsrcMat, HOUT * WOUT, COUT, sizeof(float16_t), addsrcData);
     tensor_new_1d(alphaMat, COUT, sizeof(float16_t), &alphaData);
     tensor_new_1d(betaMat, COUT, sizeof(float16_t), &betaData);
     tensor_new_2d(dstMat, HOUT * WOUT, COUT, sizeof(float16_t), &dstData);
+    tensor_new_2d(addoutMat, HOUT * WOUT, COUT, sizeof(float16_t), &addoutData);
 
     PERF_BEGIN();
 
     for (int i = 0; i < NLOOPS; i++) {
-        conv_add_bn_relu(&dstMat, &srcMat, &weightMat, &addsrcMat, &alphaMat, &betaMat, &sst);
+        conv_add_bn_relu(&dstMat, &addoutMat, &srcMat, &weightMat, &addsrcMat, &alphaMat, &betaMat, &sst);
     }
 
     PERF_END();

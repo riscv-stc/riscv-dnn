@@ -7,7 +7,7 @@
 #include "mme.h"
 #include "matmul.h"
 
-static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
+static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Config *ss)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -109,112 +109,10 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Tensor *
 }
 
 
-// split hout*wout loops 
-// static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
-// {
-//     int stride_h = ss->stride_h;
-//     int stride_w = ss->stride_w;
-
-//     int pad_t = ss->top;
-//     int pad_b = ss->bottom;
-//     int pad_l = ss->left;
-//     int pad_r = ss->right;
-
-//     int dilation_h = ss->dilation_h;
-//     int dilation_w = ss->dilation_w;
-
-//     int kh = ss->kh;
-//     int kw = ss->kw;
-
-//     int hin = ss->hin;
-//     int win = ss->win;
-//     int cin = ss->cin;
-
-//     int hout = ss->hout;
-//     int wout = ss->wout;
-//     int cout = ss->cout;
-
-//     int dataSize = sizeof(float16_t);
-//     float16_t *psrc1 = (float16_t *)src->data;
-//     float16_t *psrc2 = (float16_t *)weight->data;
-//     float16_t *pdst = (float16_t *)dst->data;
-
-//     int mtype = 1;
-//     asm volatile("msettype x0, %[rs1]"
-//                 : 
-//                 : [rs1]"r"(mtype));
-
-//     int mkrsh = kh << 16 | kw;
-//     int mfdsh = hin << 16 | win;
-//     int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
-//     int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
-
-//     int m = hout * wout;
-//     int k = kh *kw * cin;
-//     int n = cout;
-
-//     int tilem, tilen, tilek;
-
-//     asm volatile("msetkrsh x0, %[rs1], %[rs2]"
-//                 : 
-//                 : [rs1]"r"(mkrsh), [rs2]"r"(mstdi));
-//     asm volatile("msetfdsh x0, %[rs1], %[rs2]"
-//                 :
-//                 : [rs1]"r"(mfdsh), [rs2]"r"(mpad));
-
-//     for (int i = 0; i < hout; ++i) {
-//       for (int iw = 0; iw < wout; iw+=tilem) {
-//         asm volatile("msettilem %[rd], %[rs1]"
-//                       : [rd]"=r"(tilem)
-//                       : [rs1]"r"(wout-iw));
-
-//         int hout_pos = i;
-//         int wout_pos = iw;
-        
-//         for (int j = 0; j < n; j+=tilen) {
-//           asm volatile("msettilen %[rd], %[rs1]"
-//                           : [rd]"=r"(tilen)
-//                           : [rs1]"r"(n-j));
-//           asm volatile("mwsubc.mm acc0, acc0");
-
-//           for (int skh = 0; skh < kh; skh++) {
-//             int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
-//             for (int skw = 0; skw < kw; skw++) {
-//               int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-//               asm volatile("msetsk x0, %[rs1]"
-//                           : 
-//                           : [rs1]"r"(hin_pos <<  16 | win_pos));
-
-//               for (int skc = 0; skc < cin;  skc+=tilek) {
-//                   asm volatile("msettilek %[rd], %[rs1]"
-//                               : [rd]"=r"(tilek)
-//                               : [rs1]"r"(cin-skc));
-//                   asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
-//                               :
-//                               :[rs1]"r"(psrc1+hin_pos*win*cin+win_pos*cin+skc), [rs2]"r"(cin*dataSize));
-                  
-//                   asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-//                               :
-//                               :[rs1]"r"(psrc2+skh*kw*cin*cout+skw*cin*cout+skc*cout+j), [rs2]"r"(cout*dataSize));
-//                   asm volatile("mfwma.mm acc0, tr0, tr1");
-//               }
-//             }
-//           }
-//           asm volatile("mfncvtc.f.fw.m acc1, acc0");
-//           asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-//                       : 
-//                       : [rs1]"r"(pdst+i*wout*cout+iw*cout+j), [rs2]"r"(cout*dataSize));
-//         }
-//       }
-//     }
-
-    
-//     return 0;
-// }
 
 static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad, Config *ss)
 {
-  conv_im2col(dst, src, weight, srcPad, ss);
+  conv_im2col(dst, src, weight, ss);
 }
 
 #endif

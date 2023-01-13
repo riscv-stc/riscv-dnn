@@ -7,7 +7,7 @@
 #include "mme.h"
 #include "matmul.h"
 
-static inline int conv_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss)
+static inline int conv_bn_relu_rvm(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -100,6 +100,8 @@ static inline int conv_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Tensor 
           }
         }
 
+        asm volatile("mfncvtc.f.fw.m acc1, acc0");
+
         // batchnormal
         int vl = vsetvl_e16m1(tilen);
         asm volatile("vle16.v v8, (%[rs1])"
@@ -108,8 +110,8 @@ static inline int conv_bn_relu(Tensor *dst, Tensor *src, Tensor *weight, Tensor 
         asm volatile("vle16.v v16, (%[rs1])"
                     : 
                     : [rs1]"r"(pbeta + j));
-        asm volatile("mfwmacccr.mv acc0, v8, v16");
-        asm volatile("mfncvtc.f.fw.m acc1, acc0");
+        asm volatile("mfmacccr.mv acc1, v8, v16");
+        
         
         // relu
         for (int k = 0; k < tilem; k+=8) {

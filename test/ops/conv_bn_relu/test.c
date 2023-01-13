@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     PERF_BEGIN();
 
     for (int i = 0; i < NLOOPS; i++) {
-        conv_bn_relu(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat, &sst);
+        conv_bn_relu_rvm(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat, &sst);
     }
 
     PERF_END();
