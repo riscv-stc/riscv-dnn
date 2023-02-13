@@ -1,16 +1,30 @@
 #include <stdio.h>
 
 #include "resnet.h"
-
+#include "../../../src/hpm.h"
+#include "../../../src/encoding.h"
 
 int main()
 {   
     printf("begin %d\n", N);
     const int num_pictures = N;
     const int picture_size = 224 * 224 * 3 * sizeof(float16_t);
+    uint64_t cycles=0;
+    write_csr(mcounteren, -1); // Enable supervisor use of all perf counters
+    write_csr(scounteren, -1); // Enable user use of all perf counters
     for(int i = num_pictures; i < num_pictures+1; i++) {
-        resnet50_base(imagenet_pic_data_data + i * picture_size);
+        
+        for (int j = 0; j < 2; j++) {
+            cycles = read_csr_safe(cycle);
+            resnet50_base(imagenet_pic_data_data + i * picture_size);
+            cycles = read_csr_safe(cycle) -cycles;
+        }
+        
     }
+
+    printf("End\n");
+
+    printf("Cycles: %ld\n", cycles);
 
     return 0;
 }
@@ -105,6 +119,7 @@ int resnet50_base(void *indata)
         printf("stage1_9_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage1_conv10.hout, stage1_conv10.wout, stage1_conv10.cout);
     }
+
     
 /*
  * stage 2
@@ -128,7 +143,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage2_12_relu_out, &stage2_add3_out, &stage2_11_relu_out, &stage2_conv11_out, conv2d_14_kernel_data, batch_normalization_12_new_alpha_data, batch_normalization_12_new_beta_data, stage2_conv14);
     if (DEBUG_PRINT) {
         printf("stage2_12_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage2_conv13.hout, stage2_conv13.wout, stage2_conv13.cout);
+                stage2_conv14.hout, stage2_conv14.wout, stage2_conv14.cout);
     }
 
     config_conv(stage2_conv15, stage2_conv14.hout, stage2_conv14.wout, stage2_conv14.cout, 128, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -145,7 +160,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage2_15_relu_out, &stage2_add4_out, &stage2_14_relu_out, &stage2_add3_out, conv2d_17_kernel_data, batch_normalization_15_new_alpha_data, batch_normalization_15_new_beta_data, stage2_conv17);
     if (DEBUG_PRINT) {
         printf("stage2_15_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage2_conv16.hout, stage2_conv16.wout, stage2_conv16.cout);
+                stage2_conv17.hout, stage2_conv17.wout, stage2_conv17.cout);
     }
 
     config_conv(stage2_conv18, stage2_conv17.hout, stage2_conv17.wout, stage2_conv17.cout, 128, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -162,7 +177,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage2_18_relu_out, &stage2_add5_out, &stage2_17_relu_out, &stage2_add4_out, conv2d_20_kernel_data, batch_normalization_18_new_alpha_data, batch_normalization_18_new_beta_data, stage2_conv20);
     if (DEBUG_PRINT) {
         printf("stage2_18_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage2_conv19.hout, stage2_conv19.wout, stage2_conv19.cout);
+                stage2_conv20.hout, stage2_conv20.wout, stage2_conv20.cout);
     }
 
     config_conv(stage2_conv21, stage2_conv20.hout, stage2_conv20.wout, stage2_conv20.cout, 128, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -179,7 +194,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage2_21_relu_out, &stage2_add6_out, &stage2_20_relu_out, &stage2_add5_out, conv2d_23_kernel_data, batch_normalization_21_new_alpha_data, batch_normalization_21_new_beta_data, stage2_conv23);
     if (DEBUG_PRINT) {
         printf("stage2_21_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage2_conv22.hout, stage2_conv22.wout, stage2_conv22.cout);
+                stage2_conv23.hout, stage2_conv23.wout, stage2_conv23.cout);
     }
     
 /*
@@ -204,7 +219,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_24_relu_out, &stage3_add7_out, &stage3_23_relu_out, &stage3_conv24_out, conv2d_27_kernel_data, batch_normalization_24_new_alpha_data, batch_normalization_24_new_beta_data, stage3_conv27);
     if (DEBUG_PRINT) {
         printf("stage3_24_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv26.hout, stage3_conv26.wout, stage3_conv26.cout);
+                stage3_conv27.hout, stage3_conv27.wout, stage3_conv27.cout);
     }
 
     config_conv(stage3_conv28, stage3_conv27.hout, stage3_conv27.wout, stage3_conv27.cout, 256, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -221,7 +236,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_27_relu_out, &stage3_add8_out, &stage3_26_relu_out, &stage3_add7_out, conv2d_30_kernel_data, batch_normalization_27_new_alpha_data, batch_normalization_27_new_beta_data, stage3_conv30);
     if (DEBUG_PRINT) {
         printf("stage3_27_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv29.hout, stage3_conv29.wout, stage3_conv29.cout);
+                stage3_conv30.hout, stage3_conv30.wout, stage3_conv30.cout);
     }
 
     config_conv(stage3_conv31, stage3_conv30.hout, stage3_conv30.wout, stage3_conv30.cout, 256, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -238,7 +253,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_30_relu_out, &stage3_add9_out, &stage3_29_relu_out, &stage3_add8_out, conv2d_33_kernel_data, batch_normalization_30_new_alpha_data, batch_normalization_30_new_beta_data, stage3_conv33);
     if (DEBUG_PRINT) {
         printf("stage3_30_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv32.hout, stage3_conv32.wout, stage3_conv32.cout);
+                stage3_conv33.hout, stage3_conv33.wout, stage3_conv33.cout);
     }
 
     config_conv(stage3_conv34, stage3_conv33.hout, stage3_conv33.wout, stage3_conv33.cout, 256, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -255,7 +270,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_33_relu_out, &stage3_add10_out, &stage3_32_relu_out, &stage3_add9_out, conv2d_36_kernel_data, batch_normalization_33_new_alpha_data, batch_normalization_33_new_beta_data, stage3_conv36);
     if (DEBUG_PRINT) {
         printf("stage3_33_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv35.hout, stage3_conv35.wout, stage3_conv35.cout);
+                stage3_conv36.hout, stage3_conv36.wout, stage3_conv36.cout);
     }
 
     config_conv(stage3_conv37, stage3_conv36.hout, stage3_conv36.wout, stage3_conv36.cout, 256, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -272,7 +287,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_36_relu_out, &stage3_add11_out, &stage3_35_relu_out, &stage3_add10_out, conv2d_39_kernel_data, batch_normalization_36_new_alpha_data, batch_normalization_36_new_beta_data, stage3_conv39);
     if (DEBUG_PRINT) {
         printf("stage3_36_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv38.hout, stage3_conv38.wout, stage3_conv38.cout);
+                stage3_conv39.hout, stage3_conv39.wout, stage3_conv39.cout);
     }
 
     config_conv(stage3_conv40, stage3_conv39.hout, stage3_conv39.wout, stage3_conv39.cout, 256, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -289,7 +304,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage3_39_relu_out, &stage3_add12_out, &stage3_38_relu_out, &stage3_add11_out, conv2d_42_kernel_data, batch_normalization_39_new_alpha_data, batch_normalization_39_new_beta_data, stage3_conv42);
     if (DEBUG_PRINT) {
         printf("stage3_39_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage3_conv41.hout, stage3_conv41.wout, stage3_conv41.cout);
+                stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout);
     }
     
 /*
@@ -313,7 +328,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage4_42_relu_out,& stage4_add13_out, &stage4_41_relu_out, &stage4_conv43_out, conv2d_46_kernel_data, batch_normalization_42_new_alpha_data, batch_normalization_42_new_beta_data, stage4_conv46);
     if (DEBUG_PRINT) {
         printf("stage4_42_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage4_conv45.hout, stage4_conv45.wout, stage4_conv45.cout);
+                stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout);
     }
 
     config_conv(stage4_conv47, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, 512, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -330,7 +345,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage4_45_relu_out, &stage4_add14_out, &stage4_44_relu_out, &stage4_add13_out, conv2d_49_kernel_data, batch_normalization_45_new_alpha_data, batch_normalization_45_new_beta_data, stage4_conv49);
     if (DEBUG_PRINT) {
         printf("stage4_45_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage4_conv48.hout, stage4_conv48.wout, stage4_conv48.cout);
+                stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout);
     }
 
     config_conv(stage4_conv50, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, 512, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
@@ -347,7 +362,7 @@ int resnet50_base(void *indata)
     conv_add_bn_relu(&stage4_48_relu_out, &stage4_add15_out, &stage4_47_relu_out, &stage4_add14_out, conv2d_52_kernel_data, batch_normalization_48_new_alpha_data, batch_normalization_48_new_beta_data, stage4_conv52);
     if (DEBUG_PRINT) {
         printf("stage4_48_relu_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
-                stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout);
+                stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout);
     }
     
 /**
@@ -393,16 +408,14 @@ int resnet50_base(void *indata)
 
     tensor_new_2d(stage5_softmax_out_f16, 1, 1001, sizeof(float16_t), softmax_tensor_fp16_data);
     cast_f32_to_f16(&stage5_softmax_out_f16, &stage5_softmax_out_f32);
-
-    unsigned short *p = (unsigned short *)softmax_tensor_fp16_data;
-    printf("result %d ", N);
-    for (int i = 0; i < 1001; i++) {
-        printf("%d,", *(p+i));
+    if (DEBUG_PRINT) {
+        unsigned short *p = (unsigned short *)softmax_tensor_fp16_data;
+        printf("result %d ", N);
+        for (int i = 0; i < 1001; i++) {
+            printf("%d,", *(p+i));
+        }
+        printf("\n");
     }
-    printf("\n");
-    
-
-    printf("End\n");
     return 0;
 }
 
