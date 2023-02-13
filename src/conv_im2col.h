@@ -36,6 +36,10 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Config *
     float16_t *psrc2 = (float16_t *)weight->data;
     float16_t *pdst = (float16_t *)dst->data;
 
+    int stride_s1 = src->stride;
+    int stride_s2 = weight->stride;
+    int stride_d = dst->stride;
+
     int mtype = 1;
     asm volatile("msettype x0, %[rs1]"
                 : 
@@ -80,19 +84,19 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Config *
             asm volatile("msetsk x0, %[rs1], %[rs2]"
                         : 
                         : [rs1]"r"(hin_pos <<  16 | (win_pos & 0xffff)), [rs2]"r"((skw * dilation_w) << 16 | wout_pos));
-            float16_t *_prsc1 = psrc1+hin_pos*win*cin+win_pos*cin;
-            float16_t *_psrc2 = psrc2+skh*kw*cin*cout+skw*cin*cout+j;
+            float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
+            float16_t *_psrc2 = psrc2+skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
             for (int skc = 0; skc < cin;  skc+=tilek) {
                 asm volatile("msettilek %[rd], %[rs1]"
                             : [rd]"=r"(tilek)
                             : [rs1]"r"(cin-skc));
                 asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(cin*dataSize));
+                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(stride_s1));
                 
                 asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(_psrc2+skc*cout), [rs2]"r"(cout*dataSize));
+                            :[rs1]"r"(_psrc2+skc*stride_s2/dataSize), [rs2]"r"(stride_s2));
                 asm volatile("mfwma.mm acc0, tr0, tr1");
             }
           }
@@ -100,7 +104,7 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight, Config *
         asm volatile("mfncvtc.f.fw.m acc1, acc0");
         asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
                     : 
-                    : [rs1]"r"(pdst+i*cout+j), [rs2]"r"(cout*dataSize));
+                    : [rs1]"r"(pdst+i*stride_d/dataSize+j), [rs2]"r"(stride_d));
       }
     }
 

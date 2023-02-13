@@ -22,9 +22,9 @@ int main(int argc, char **argv)
 
     config_conv(sst, HIN, WIN, CIN, COUT, PAD_TOP, PAD_BOTTOM, PAD_LEFT, PAD_RIGHT, KH, KW, STRIDE_H, STRIDE_W, DILATION_H, DILATION_W);
 
-    tensor_new_2d(srcMat, HIN, WIN * CIN, sizeof(float16_t), srcData);
-    tensor_new_2d(weightMat, KH * KW * CIN, COUT, sizeof(float16_t), weightData);
-    tensor_new_2d(dstMat, HOUT * WOUT, COUT, sizeof(float16_t), &dstData);
+    tensor_new_3d(srcMat, HIN, WIN, CIN, sizeof(float16_t), srcData);
+    tensor_new_4d(weightMat, KH, KW, CIN, COUT, sizeof(float16_t), weightData);
+    tensor_new_3d(dstMat, HOUT, WOUT, COUT, sizeof(float16_t), &dstData);
 
     tensor_new_2d(srcPad, HOUT * WOUT, KH * KW * CIN, sizeof(float16_t), padData);
 
