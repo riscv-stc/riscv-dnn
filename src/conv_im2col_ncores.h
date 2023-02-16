@@ -160,12 +160,80 @@ static inline int conv_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Con
     return 0;
 }
 
+static inline int conv_ncores_cin(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
+{
+    int stride_h = ss->stride_h;
+    int stride_w = ss->stride_w;
 
+    int pad_t = ss->top;
+    int pad_b = ss->bottom;
+    int pad_l = ss->left;
+    int pad_r = ss->right;
+
+    int dilation_h = ss->dilation_h;
+    int dilation_w = ss->dilation_w;
+
+    int kh = ss->kh;
+    int kw = ss->kw;
+
+    int hin = ss->hin;
+    int win = ss->win;
+    int cin = ss->cin;
+
+    int hout = ss->hout;
+    int wout = ss->wout;
+    int cout = ss->cout;
+
+    int dataSize = sizeof(float16_t);
+    char *psrc = (char *)src->data;
+    char *pweight = (char *)weight->data;
+    char *pdst = (char *)dst->data;
+
+    int stride_src = src->stride;
+    int stride_weight = weight->stride;
+    int stride_dst = dst->stride;
+
+    assert(cin%ncores==0 && cout%ncores==0);
+    int pid = read_csr(mhartid);
+
+    int part_cout = cout / ncores;
+    int part_cin  = cin / ncores;
+
+    for (int n = 0; n < ncores; n++) {
+      int cin_idx =  pid;
+      int cout_idx = ncores - 1 - n % ncores;
+
+      char *_src =  psrc + cin_idx * part_cin * dataSize;
+
+      tensor_new_3d_with_stride(_srcMat, hin, win, part_cin, dataSize, _src, stride_src);
+
+      for (int i = 0; i < kh; i++) {
+        for (int j = 0; j <  kw; j++) {
+      
+          char *_weight = pweight + cout_idx * part_cout * dataSize + (i * kw * ncores + j * ncores + pid) * part_cin * stride_weight;
+
+          tensor_new_4d_with_stride(_weightMat, kh, kw, part_cin, part_cout, dataSize, _weight, stride_weight);
+
+          char *_dst = pdst + cout_idx * part_cout * dataSize;
+
+          tensor_new_3d_with_stride(_dstMat, hout, wout, part_cout, dataSize, _dst, stride_dst);
+
+          config_conv(sst, hin, win, part_cin, part_cout, pad_t, pad_b, pad_l, pad_r, kh, kw, stride_h, stride_w, dilation_h, dilation_w);
+
+          im2col_add(&_dstMat, &_srcMat, &_weightMat, &sst, i, j);
+        }
+      }
+      barrier(ncores);
+
+    }
+    
+    return 0;
+}
 
 
 static inline int conv_im2col_ncores(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
 {
-  conv_ncores_cout(dst, src, weight, ss, ncores);
+  conv_ncores_hout(dst, src, weight, ss, ncores);
 }
 
 #endif
