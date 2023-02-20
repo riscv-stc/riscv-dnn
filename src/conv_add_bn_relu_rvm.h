@@ -39,6 +39,12 @@ static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src,
     float16_t *paddsrc = (float16_t *)addsrc->data;
     float16_t *palpha = (float16_t *)alpha->data;
     float16_t *pbeta = (float16_t *)beta->data;
+    
+    int stride_s1 = src->stride;
+    int stride_s2 = weight->stride;
+    int stride_d = dst->stride;
+    int stride_addsrc = addsrc->stride;
+    int stride_addout = addout->stride;
 
     int mtype = 1;
     asm volatile("msettype x0, %[rs1]"
@@ -84,19 +90,19 @@ static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src,
             asm volatile("msetsk x0, %[rs1], %[rs2]"
                         : 
                         : [rs1]"r"(hin_pos <<  16 | (win_pos & 0xffff)), [rs2]"r"((skw * dilation_w) << 16 | wout_pos));
-            float16_t *_prsc1 = psrc1+hin_pos*win*cin+win_pos*cin;
-            float16_t *_psrc2 = psrc2+skh*kw*cin*cout+skw*cin*cout+j;
+            float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
+            float16_t *_psrc2 = psrc2+skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
             for (int skc = 0; skc < cin;  skc+=tilek) {
                 asm volatile("msettilek %[rd], %[rs1]"
                             : [rd]"=r"(tilek)
                             : [rs1]"r"(cin-skc));
                 asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(cin*dataSize));
+                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(stride_s1));
                 
                 asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
                             :
-                            :[rs1]"r"(_psrc2+skc*cout), [rs2]"r"(cout*dataSize));
+                            :[rs1]"r"(_psrc2+skc*stride_s2/dataSize), [rs2]"r"(stride_s2));
                 asm volatile("mfwma.mm acc0, tr0, tr1");
             }
           }
@@ -107,12 +113,12 @@ static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src,
         // add
         asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
                       :
-                      :[rs1]"r"(paddsrc+i*cout+j), [rs2]"r"(cout*dataSize));
+                      :[rs1]"r"(paddsrc+i*stride_addsrc/dataSize+j), [rs2]"r"(stride_addsrc));
         asm volatile("mfaddc.mm acc0, acc1");
 
         asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
                       :
-                      :[rs1]"r"(paddout+i*cout+j), [rs2]"r"(cout*dataSize));
+                      :[rs1]"r"(paddout+i*stride_addout/dataSize+j), [rs2]"r"(stride_addout));
         
         // batchnormal
         int vl = vsetvl_e16m1(tilen);
@@ -137,7 +143,7 @@ static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src,
                         : [frs2]"f"((float16_t)0.f));
           asm volatile("msce16.v v0, (%[rs1]), %[rs2]"
                         :
-                        : [rs1]"r"(pdst+(i+k)*cout+j), [rs2]"r"(cout*dataSize));
+                        : [rs1]"r"(pdst+(i+k)*stride_d/dataSize+j), [rs2]"r"(stride_d));
         }
       }
     }
