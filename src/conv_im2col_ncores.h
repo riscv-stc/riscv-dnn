@@ -10,7 +10,7 @@
 #include "conv_im2col.h"
 #include "util.h"
 
-static inline int conv_ncores_cout(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
+static inline int conv_ncores_cout(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores, int pid)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -44,7 +44,6 @@ static inline int conv_ncores_cout(Tensor *dst, Tensor *src, Tensor *weight, Con
     int stride_dst = dst->stride;
 
     assert(cin%ncores==0 && cout%ncores==0);
-    int pid = read_csr(mhartid);
 
     int part_cout = cout / ncores;
     int part_cin  = cin / ncores;
@@ -79,7 +78,7 @@ static inline int conv_ncores_cout(Tensor *dst, Tensor *src, Tensor *weight, Con
 }
 
 
-static inline int conv_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
+static inline int conv_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores, int pid)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -113,7 +112,6 @@ static inline int conv_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Con
     int stride_dst = dst->stride;
 
     assert(hout%ncores==0 && cout%ncores==0);
-    int pid = read_csr(mhartid);
 
     int part_cout = cout / ncores;
     int part_hout = hout / ncores;
@@ -160,7 +158,7 @@ static inline int conv_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Con
     return 0;
 }
 
-static inline int conv_ncores_cin(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
+static inline int conv_ncores_cin(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores, int pid)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -194,7 +192,6 @@ static inline int conv_ncores_cin(Tensor *dst, Tensor *src, Tensor *weight, Conf
     int stride_dst = dst->stride;
 
     assert(cin%ncores==0 && cout%ncores==0);
-    int pid = read_csr(mhartid);
 
     int part_cout = cout / ncores;
     int part_cin  = cin / ncores;
@@ -231,9 +228,9 @@ static inline int conv_ncores_cin(Tensor *dst, Tensor *src, Tensor *weight, Conf
 }
 
 
-static inline int conv_im2col_ncores(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores)
+static inline int conv_im2col_ncores(Tensor *dst, Tensor *src, Tensor *weight, Config *ss, int ncores, int pid)
 {
-  conv_ncores_hout(dst, src, weight, ss, ncores);
+  conv_ncores_hout(dst, src, weight, ss, ncores, pid);
 }
 
 #endif

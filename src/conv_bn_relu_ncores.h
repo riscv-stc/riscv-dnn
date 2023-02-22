@@ -10,7 +10,7 @@
 #include "conv_im2col.h"
 #include "util.h"
 
-static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores)
+static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -46,7 +46,6 @@ static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *wei
     int stride_dst = dst->stride;
 
     assert(hout%ncores==0 && cout%ncores==0);
-    int pid = read_csr(mhartid);
 
     int part_cout = cout / ncores;
     int part_hout = hout / ncores;
@@ -98,9 +97,9 @@ static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *wei
     return 0;
 }
 
-static inline int conv_bn_relu_ncores(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores)
+static inline int conv_bn_relu_ncores(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
 {
-  conv_bn_relu_ncores_hout(dst, src, weight, alpha, beta, ss, ncores);
+  conv_bn_relu_ncores_hout(dst, src, weight, alpha, beta, ss, ncores, pid);
 }
 
 #endif

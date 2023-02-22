@@ -28,10 +28,12 @@ int main(int argc, char **argv)
     tensor_new_1d(betaMat, COUT, sizeof(float16_t), &betaData);
     tensor_new_3d(dstMat, HOUT, WOUT, COUT, sizeof(float16_t), &dstData);
 
+    int pid = read_csr(mhartid);
+
     PERF_BEGIN();
 
     for (int i = 0; i < 1; i++) {
-        conv_bn_relu_ncores(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat,&sst, CORENUMS);
+        conv_bn_relu_ncores(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat,&sst, CORENUMS, pid);
         barrier(CORENUMS);
     }
 

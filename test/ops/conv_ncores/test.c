@@ -24,10 +24,14 @@ int main(int argc, char **argv)
     tensor_new_4d(weightMat, KH, KW, CIN, COUT, sizeof(float16_t), weightData);
     tensor_new_3d(dstMat, HOUT, WOUT, COUT, sizeof(float16_t), &dstData);
 
+    int pid = read_csr(mhartid);
+
+    PERF_BEGIN();
     for (int i = 0; i < NLOOPS; i++) {
-        conv_im2col_ncores(&dstMat, &srcMat, &weightMat, &sst, CORENUMS);
+        conv_im2col_ncores(&dstMat, &srcMat, &weightMat, &sst, CORENUMS, pid);
         barrier(CORENUMS);
     }
+    PERF_END();
 
     return 0;
 }

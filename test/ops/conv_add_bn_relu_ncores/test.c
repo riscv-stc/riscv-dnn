@@ -33,10 +33,12 @@ int main(int argc, char **argv)
     tensor_new_3d(dstMat, HOUT, WOUT, COUT, sizeof(float16_t), &dstData);
     tensor_new_3d(addoutMat, HOUT, WOUT, COUT, sizeof(float16_t), &addoutData);
 
+    int pid = read_csr(mhartid);
+
     PERF_BEGIN();
 
     for (int i = 0; i < NLOOPS; i++) {
-        conv_add_bn_relu_ncores(&dstMat, &addoutMat, &srcMat, &weightMat, &addsrcMat, &alphaMat, &betaMat, &sst, CORENUMS);
+        conv_add_bn_relu_ncores(&dstMat, &addoutMat, &srcMat, &weightMat, &addsrcMat, &alphaMat, &betaMat, &sst, CORENUMS, pid);
     }
 
     PERF_END();
