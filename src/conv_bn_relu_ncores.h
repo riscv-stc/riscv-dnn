@@ -10,7 +10,7 @@
 #include "conv_im2col.h"
 #include "util.h"
 
-static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
+static inline int conv_bn_relu_ncores_hout_cout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
 {
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
@@ -97,9 +97,141 @@ static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *wei
     return 0;
 }
 
+static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
+{
+    int stride_h = ss->stride_h;
+    int stride_w = ss->stride_w;
+
+    int pad_t = ss->top;
+    int pad_b = ss->bottom;
+    int pad_l = ss->left;
+    int pad_r = ss->right;
+
+    int dilation_h = ss->dilation_h;
+    int dilation_w = ss->dilation_w;
+
+    int kh = ss->kh;
+    int kw = ss->kw;
+
+    int hin = ss->hin;
+    int win = ss->win;
+    int cin = ss->cin;
+
+    int hout = ss->hout;
+    int wout = ss->wout;
+    int cout = ss->cout;
+
+    int dataSize = sizeof(float16_t);
+    char *psrc = (char *)src->data;
+    char *pdst = (char *)dst->data;
+
+    int stride_src = src->stride;
+    int stride_dst = dst->stride;
+
+    assert(hout%ncores==0);
+
+    int part_hout = hout / ncores;
+
+    int part_hin = (part_hout - 1) * stride_h + 1 + dilation_h * (kh - 1);
+    
+    int hout_idx = pid;
+    int hin_idx = hout_idx;
+
+    int _pad_t = 0;
+    int _pad_b = 0;
+
+    char *_src = psrc + hin_idx * (part_hout * stride_h) * win * stride_src;
+
+    if (hin_idx == 0) {
+      part_hin -= pad_t;
+      _pad_t = pad_t;
+    } else {
+      _src -= pad_t * win * stride_src;
+    }
+    if (hin_idx == (ncores - 1)) {
+      part_hin -= pad_b;
+      _pad_b = pad_b;
+    }
+  
+    tensor_new_3d_with_stride(_srcMat, part_hin, win, cin, dataSize, _src, stride_src);
+
+    char *_dst = pdst + hout_idx * part_hout * wout * stride_dst;
+
+    tensor_new_3d_with_stride(_dstMat, part_hout, wout, cout, dataSize, _dst, stride_dst);
+
+    config_conv(_sst, part_hin, win, cin, cout, _pad_t, _pad_b, pad_l, pad_r, kh, kw, stride_h, stride_w, dilation_h, dilation_w);
+
+    conv_bn_relu_rvm(&_dstMat, &_srcMat, weight, alpha, beta, &_sst);
+    
+    
+    return 0;
+}
+
+static inline int conv_bn_relu_ncores_cout(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
+{
+    int stride_h = ss->stride_h;
+    int stride_w = ss->stride_w;
+
+    int pad_t = ss->top;
+    int pad_b = ss->bottom;
+    int pad_l = ss->left;
+    int pad_r = ss->right;
+
+    int dilation_h = ss->dilation_h;
+    int dilation_w = ss->dilation_w;
+
+    int kh = ss->kh;
+    int kw = ss->kw;
+
+    int hin = ss->hin;
+    int win = ss->win;
+    int cin = ss->cin;
+
+    int hout = ss->hout;
+    int wout = ss->wout;
+    int cout = ss->cout;
+
+    int dataSize = sizeof(float16_t);
+    char *psrc = (char *)src->data;
+    char *pweight = (char *)weight->data;
+    char *pdst = (char *)dst->data;
+    char *palpha = (char *)alpha->data;
+    char *pbeta = (char *)beta->data;
+
+    int stride_src = src->stride;
+    int stride_weight = weight->stride;
+    int stride_dst = dst->stride;
+
+    assert(cout%ncores==0);
+
+    int part_cout = cout / ncores;
+
+  
+    int cout_idx = pid;
+
+    char *_weight = pweight + cout_idx * part_cout * dataSize;
+
+    tensor_new_4d_with_stride(_weightMat, kh, kw, cin, part_cout, dataSize, _weight, stride_weight);
+
+    char *_dst = pdst + cout_idx * part_cout * dataSize;
+
+    tensor_new_3d_with_stride(_dstMat, hout, wout, part_cout, dataSize, _dst, stride_dst);
+
+    config_conv(_sst, hin, win, cin, part_cout, pad_t, pad_b, pad_l, pad_r, kh, kw, stride_h, stride_w, dilation_h, dilation_w);
+
+    char *_palhpa = palpha + cout_idx * part_cout * dataSize;
+    char *_pbeta = pbeta + cout_idx * part_cout * dataSize;
+    tensor_new_1d(_alphaMat, part_cout, dataSize, _palhpa);
+    tensor_new_1d(_betaMat, part_cout, dataSize, _pbeta);
+
+    conv_bn_relu_rvm(&_dstMat, src, &_weightMat, &_alphaMat, &_betaMat, &_sst);
+    
+    return 0;
+}
+
 static inline int conv_bn_relu_ncores(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
 {
-  conv_bn_relu_ncores_hout(dst, src, weight, alpha, beta, ss, ncores, pid);
+  conv_bn_relu_ncores_cout(dst, src, weight, alpha, beta, ss, ncores, pid);
 }
 
 #endif
