@@ -38,16 +38,16 @@ typedef struct {
 } Tensor;
 
 #define tensor_new_1d_with_stride(name, _w, _elemsize, _data, stride) \
-    Tensor name = { {0, _w, 0, 0}, 1, _elemsize, _w, _data, stride};
+    Tensor name = { {0, _w, 0, 0}, 1, _elemsize, _w, _data, stride==0?_w*_elemsize: stride};
 
 #define tensor_new_2d_with_stride(name, _h, _w, _elemsize, _data, stride) \
-    Tensor name = { {_h, _w, 0, 0}, 2, _elemsize, _h*_w, _data, stride};
+    Tensor name = { {_h, _w, 0, 0}, 2, _elemsize, _h*_w, _data, stride==0?_w*_elemsize: stride};
 
 #define tensor_new_3d_with_stride(name, _h, _w, _cin, _elemsize, _data, stride) \
-    Tensor name = { {_h, _w, _cin, 0}, 3, _elemsize, _h*_w*_cin, _data, stride};
+    Tensor name = { {_h, _w, _cin, 0}, 3, _elemsize, _h*_w*_cin, _data, stride==0?_cin*_elemsize: stride};
 
 #define tensor_new_4d_with_stride(name, _h, _w, _cin, _cout, _elemsize, _data, stride) \
-    Tensor name = { {_h, _w, _cin, _cout}, 4, _elemsize, _h*_w*_cin*_cout, _data, stride};
+    Tensor name = { {_h, _w, _cin, _cout}, 4, _elemsize, _h*_w*_cin*_cout, _data, stride==0?_cout*_elemsize: stride};
 
 #define tensor_new_1d_with_data(name, _w, _elemsize) \
     static uint8_t name ## _data[ _w * _elemsize] __attribute__((aligned(64))); \

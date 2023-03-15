@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     PERF_BEGIN();
 
     for (int i = 0; i < 1; i++) {
-        conv_bn_relu_ncores(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat,&sst, CORENUMS, pid);
+        conv_bn_relu_ncores_hout(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat,&sst, CORENUMS, pid);
         barrier(CORENUMS);
     }
 

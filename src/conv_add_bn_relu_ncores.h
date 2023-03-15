@@ -57,7 +57,7 @@ static inline int conv_add_bn_relu_ncores_hout(Tensor *dst, Tensor *addout, Tens
     for (int i = 0; i < ncores; ++i) {
       int part_hin = (part_hout - 1) * stride_h + 1 + dilation_h * (kh - 1);
       
-      int hout_idx = pid;
+      int hout_idx = pid % ncores;
       int hin_idx = hout_idx;
 
       int _pad_t = 0;
@@ -104,11 +104,6 @@ static inline int conv_add_bn_relu_ncores_hout(Tensor *dst, Tensor *addout, Tens
     }
     
     return 0;
-}
-
-static inline int conv_add_bn_relu_ncores(Tensor *dst, Tensor *addout, Tensor *src, Tensor *weight, Tensor *addsrc, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
-{
-  conv_add_bn_relu_ncores_hout(dst, addout, src, weight, addsrc, alpha, beta, ss, ncores, pid);
 }
 
 #endif

@@ -22,7 +22,7 @@ sys.path.append("../..")
 from check import *
 
 title = "8 CORES for Resnet50 Net"
-opt_levels = {"loop4": "-O2 -D__RVM__ -DGEM5 -NLOOPS=4", "loop8": "-O2 -D__RVM__ -DGEM5 -NLOOPS=8"}
+opt_levels = {"loop4": "-O2 -D__RVM__ -DGEM5 -DNLOOPS=4", "loop8": "-O2 -D__RVM__ -DGEM5 -DNLOOPS=8"}
 
 pwd = os.path.dirname(os.path.realpath(__file__))
 model_path = os.path.join(pwd, "resnet-50_v2.pb")

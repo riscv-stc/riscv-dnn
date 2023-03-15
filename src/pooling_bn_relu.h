@@ -9,7 +9,7 @@
 
 
 /*
-  padding = 0
+  padding = 0,1,0,1
   wout % 4 ==0
 */
 static inline int maxpool_bn_relu(Tensor *dst, Tensor *src, Tensor *alpha, Tensor *beta, Config *ss)
@@ -19,6 +19,9 @@ static inline int maxpool_bn_relu(Tensor *dst, Tensor *src, Tensor *alpha, Tenso
     
     int stride_h = ss->stride_h;
     int stride_w = ss->stride_w;
+
+    int pad_r = ss->right;
+    int pad_b = ss->bottom; 
 
     int hin = src->shape[0];
     int win = src->shape[1];
@@ -49,6 +52,7 @@ static inline int maxpool_bn_relu(Tensor *dst, Tensor *src, Tensor *alpha, Tenso
                 : [rs1]"r"(0x0));
     for (int i = 0; i < hout; i++) {
         int sh0 = i * stride_h;
+        int last_valid = (i==(hout-1) && pad_b==1)? 1 : 0;
         for (int j = 0; j < wout; j+=4) {
           int sw0 = j * stride_w;
           asm volatile("vmv.v.x v1, %[rs1]"
@@ -63,7 +67,7 @@ static inline int maxpool_bn_relu(Tensor *dst, Tensor *src, Tensor *alpha, Tenso
           asm volatile("vmv.v.x v4, %[rs1]"
                       :
                       : [rs1]"r"(0xfbff));
-          for (int m = 0; m < kh; m++) {
+          for (int m = 0; m < kh-last_valid; m++) {
             int sy = sh0 + m;
             for (int n = 0; n < kw ; n++) {
               float16_t *_psrc = psrc + sy * win * cin + (sw0 + n) * cin;
@@ -78,15 +82,18 @@ static inline int maxpool_bn_relu(Tensor *dst, Tensor *src, Tensor *alpha, Tenso
               asm volatile("vle16.v v7, (%[rs1])"
                           :
                           : [rs1]"r"(_psrc));
-              _psrc+=cin*stride_w;
-              asm volatile("vle16.v v8, (%[rs1])"
-                          :
-                          : [rs1]"r"(_psrc));
+              if (!(pad_r==1 && n==(kw-1) && j==(wout-4))) {
+                _psrc+=cin*stride_w;
+                asm volatile("vle16.v v8, (%[rs1])"
+                            :
+                            : [rs1]"r"(_psrc));
+                asm volatile("vfmax.vv v4, v4, v8");
+              }
               
               asm volatile("vfmax.vv v1, v1, v5");
               asm volatile("vfmax.vv v2, v2, v6");
               asm volatile("vfmax.vv v3, v3, v7");
-              asm volatile("vfmax.vv v4, v4, v8");
+              
             }
           }
 

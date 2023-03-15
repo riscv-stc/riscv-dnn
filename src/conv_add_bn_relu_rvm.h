@@ -152,4 +152,135 @@ static inline int conv_add_bn_relu_rvm(Tensor *dst, Tensor *addout, Tensor *src,
     return 0;
 }
 
+
+/*
+  padding = 0
+  sh,sw,dh,dw = 1
+  kh,kw=1
+  cin=64
+  cout%64=0
+  hout*wout%64=0
+*/
+static inline int conv_add_bn_relu_1x1(Tensor *dst, Tensor *addout, Tensor *src, Tensor *weight, Tensor *addsrc, Tensor *alpha, Tensor *beta, Config *ss)
+{
+
+    int hin = ss->hin;
+    int win = ss->win;
+    int cin = ss->cin;
+
+    int hout = ss->hout;
+    int wout = ss->wout;
+    int cout = ss->cout;
+
+    int dataSize = sizeof(float16_t);
+    float16_t *psrc1 = (float16_t *)src->data;
+    float16_t *psrc2 = (float16_t *)weight->data;
+    float16_t *paddout = (float16_t *)addout->data;
+    float16_t *pdst = (float16_t *)dst->data;
+    float16_t *paddsrc = (float16_t *)addsrc->data;
+    float16_t *palpha = (float16_t *)alpha->data;
+    float16_t *pbeta = (float16_t *)beta->data;
+    
+    int stride_s1 = src->stride >> 1;
+    int stride_s2 = weight->stride >> 1;
+    int stride_d = dst->stride >> 1;
+    int stride_addsrc = addsrc->stride >> 1;
+    int stride_addout = addout->stride >> 1;
+
+    int mtype = 1;
+    asm volatile("msettype x0, %[rs1]"
+                : 
+                : [rs1]"r"(mtype));
+
+    int moutsh = hout << 16 | wout;
+    int minsh = hin << 16 | win;
+    int mpad = 0;
+    int mstdi = 1 << 24 | 1 << 16 | 1 << 8 | 1;
+
+    int m = hout * wout;
+    int k = cin;
+    int n = cout;
+
+    int tilem, tilen, tilek;
+
+    asm volatile("msetoutsh x0, %[rs1], %[rs2]"
+                : 
+                : [rs1]"r"(moutsh), [rs2]"r"(mstdi));
+    asm volatile("msetinsh x0, %[rs1], %[rs2]"
+                :
+                : [rs1]"r"(minsh), [rs2]"r"(mpad));
+    asm volatile("msettilen %[rd], %[rs1]"
+                : [rd]"=r"(tilen)
+                : [rs1]"r"(n));
+    asm volatile("msettilek %[rd], %[rs1]"
+                : [rd]"=r"(tilek)
+                : [rs1]"r"(cin));
+    
+    // conv
+    for (int i = 0; i < m; i+=tilem) {
+      asm volatile("msettilem %[rd], %[rs1]"
+                    : [rd]"=r"(tilem)
+                    : [rs1]"r"(m-i));
+
+      int hout_pos = i / wout; 
+      int wout_pos = i - hout_pos * wout;
+      asm volatile("msetsk x0, %[rs1], %[rs2]"
+                    : 
+                    : [rs1]"r"(hout_pos <<  16 | (wout_pos & 0xffff)), [rs2]"r"(1 << 16 | wout_pos));
+      float16_t *_prsc1 = psrc1+hout_pos*win*stride_s1+wout_pos*stride_s1;
+      float16_t *_paddsrc = paddsrc+i*stride_addsrc;
+      float16_t *_paddout = paddout+i*stride_addout;
+      for (int j = 0; j < n; j+=tilen) {
+        asm volatile("msubc.mm acc0, acc0");
+        float16_t *_psrc2 = psrc2+j;
+        asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
+                      :
+                      :[rs1]"r"(_prsc1), [rs2]"r"(stride_s1<<1));
+        asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
+                      :
+                      :[rs1]"r"(_psrc2), [rs2]"r"(stride_s2<<1));
+        asm volatile("mfma.mm acc1, tr0, tr1");
+
+        // add
+        asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
+                      :
+                      :[rs1]"r"(_paddsrc+j), [rs2]"r"(stride_addsrc<<1));
+        asm volatile("mfaddc.mm acc0, acc1");
+
+        asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
+                      :
+                      :[rs1]"r"(_paddout+j), [rs2]"r"(stride_addout<<1));
+        
+        // batchnormal
+        int vl = vsetvl_e16m1(tilen);
+        asm volatile("vle16.v v8, (%[rs1])"
+                    : 
+                    : [rs1]"r"(palpha + j));
+        asm volatile("vle16.v v16, (%[rs1])"
+                    : 
+                    : [rs1]"r"(pbeta + j));
+        asm volatile("mfmacccr.mv acc0, v8, v16");
+    
+        // relu
+        vl = vsetvl_e16m8(512);
+        float16_t *_pdst = pdst + i * stride_d + j; 
+        for (int k = 0; k < tilem; k+=8) {
+          asm volatile("mmvcr.v.m v24, acc0, %[rs2]"
+                        :
+                        : [rs2]"r"(k));
+          asm volatile("vfmax.vf v0, v24, %[frs2]"
+                        :
+                        : [frs2]"f"((float16_t)0.f));
+          asm volatile("msce16.v v0, (%[rs1]), %[rs2]"
+                        :
+                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d<<1));
+          _pdst += 8*stride_d;
+        }
+      }
+    }
+
+    
+    return 0;
+}
+
 #endif //__CONV_ADD_BN_RELU_H__

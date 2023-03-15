@@ -53,7 +53,7 @@ static inline int conv_bn_relu_ncores_hout_cout(Tensor *dst, Tensor *src, Tensor
     for (int i = 0; i < ncores; ++i) {
       int part_hin = (part_hout - 1) * stride_h + 1 + dilation_h * (kh - 1);
       
-      int hout_idx = pid;
+      int hout_idx = pid % ncores;
       int hin_idx = hout_idx;
 
       int _pad_t = 0;
@@ -134,7 +134,7 @@ static inline int conv_bn_relu_ncores_hout(Tensor *dst, Tensor *src, Tensor *wei
 
     int part_hin = (part_hout - 1) * stride_h + 1 + dilation_h * (kh - 1);
     
-    int hout_idx = pid;
+    int hout_idx = pid % ncores;
     int hin_idx = hout_idx;
 
     int _pad_t = 0;
@@ -207,7 +207,7 @@ static inline int conv_bn_relu_ncores_cout(Tensor *dst, Tensor *src, Tensor *wei
     int part_cout = cout / ncores;
 
   
-    int cout_idx = pid;
+    int cout_idx = pid % ncores;
 
     char *_weight = pweight + cout_idx * part_cout * dataSize;
 
@@ -229,9 +229,5 @@ static inline int conv_bn_relu_ncores_cout(Tensor *dst, Tensor *src, Tensor *wei
     return 0;
 }
 
-static inline int conv_bn_relu_ncores(Tensor *dst, Tensor *src, Tensor *weight, Tensor *alpha, Tensor *beta, Config *ss, int ncores, int pid)
-{
-  conv_bn_relu_ncores_cout(dst, src, weight, alpha, beta, ss, ncores, pid);
-}
 
 #endif

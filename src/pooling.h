@@ -100,12 +100,12 @@ static inline int avgpool_mean(Tensor *dst, Tensor *src, Config *ss)
     float16_t *psrc = (float16_t *)src->data;
     float16_t *pdst = (float16_t *)dst->data;
 
-    float numValidRecip = 1.0 / (hin * win);
+    float16_t numValidRecip = 1.0 / (hin * win);
     vl = vsetvl_e16m8(2048);
     for (int kc = 0; kc < cin; kc+=vl) {
       asm volatile("vfmv.v.f v0, %[frs1]"
                     :
-                    : [frs1]"fr"(0.f));
+                    : [frs1]"f"((float16_t)0));
       for (int i = 0; i < hin; i++) {
         for (int j = 0; j < win; j++) {
           asm volatile("vle16.v v8, (%[rs1])"
@@ -116,7 +116,7 @@ static inline int avgpool_mean(Tensor *dst, Tensor *src, Config *ss)
       }
       asm volatile("vfmul.vf v16, v0, %[frs1]"
                   :
-                  : [frs1]"fr"(numValidRecip));
+                  : [frs1]"f"(numValidRecip));
       asm volatile("vse16.v v16, (%[rs1])"
                   :
                   : [rs1]"r"(pdst + kc));
