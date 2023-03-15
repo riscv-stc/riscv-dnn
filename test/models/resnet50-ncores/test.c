@@ -3,6 +3,10 @@
 #include "resnet.h"
 #include "../../../src/hpm.h"
 #include "../../../src/encoding.h"
+#include "../../../src/perf.h"
+
+#include "params.h"
+
 uint64_t stage_start[6], stage_end[6];
 
 // #define PICTURE_SIZE  301056 // 224 * 224 * 3 * DATASIZE
@@ -12,21 +16,21 @@ int main()
 {   
     const int num_pictures = N;
     uint64_t cycles=0;
-    write_csr(mcounteren, -1); // Enable supervisor use of all perf counters
-    write_csr(scounteren, -1); // Enable user use of all perf counters
     asm("csrwi frm, 0");
-    for (int j = 0; j < 1; j++) {
+    PERF_BEGIN();
+    for (int j = 0; j < NLOOPS; j++) {
         cycles = read_csr_safe(cycle);
-        resnet50_ncores(imagenet_pic_data_data, 16, 8);
+        resnet50_ncores(imagenet_pic_data_data, 16, CORENUMS);
         cycles = read_csr_safe(cycle) -cycles;
     }
+    PERF_END();
 
-    barrier(8);
+    barrier(CORENUMS);
 
     return 0;
 }
 
-int resnet50_ncores(void *indata, int pics, int ncores)
+int resnet50_ncores(uint8_t *indata, int pics, int ncores)
 {
 
     // input(1, 224, 224, 3)
@@ -234,7 +238,7 @@ int resnet50_ncores(void *indata, int pics, int ncores)
     config_conv(stage3_conv41, stage3_conv40.hout, stage3_conv40.wout, stage3_conv40.cout, 256,  1, 1, 1, 1, 3, 3, 1, 1, 1, 1);
     config_conv(stage3_conv42, stage3_conv41.hout, stage3_conv41.wout, stage3_conv41.cout, 1024, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
     for (int i = 0; i < pics/8; i++) {
-        tensor_new_3d_with_stride(stage2_21_relu_out, stage2_conv23.hout, stage2_conv23.wout, stage2_conv23.cout, DATASIZE, Relu_21_data[pid*8+i], stage2_conv23.cout * DATASIZE + CACHELINE);
+        tensor_new_3d_with_stride(stage2_21_relu_out, stage2_conv23.hout, stage2_conv23.wout, stage2_conv23.cout, DATASIZE, Relu_21_data[pid*2+i], stage2_conv23.cout * DATASIZE + CACHELINE);
         tensor_new_3d_with_stride(stage3_conv24_out, stage3_conv24.hout, stage3_conv24.wout, stage3_conv24.cout, DATASIZE, conv2d_24_data[pid], stage3_conv24.cout * DATASIZE + CACHELINE);
         conv_base(&stage3_conv24_out, &stage2_21_relu_out, conv2d_24_kernel_data, stage3_conv24, stage3_conv24.cout * DATASIZE + CACHELINE);
     
@@ -312,102 +316,121 @@ int resnet50_ncores(void *indata, int pics, int ncores)
 
         
         tensor_new_3d_with_stride(stage3_add12_out, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, DATASIZE, add_12_data[pid], stage3_conv42.cout * DATASIZE + CACHELINE);
-        tensor_new_3d_with_stride(stage3_39_relu_out, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, DATASIZE, Relu_39_data[pid*8+i], stage3_conv42.cout * DATASIZE + CACHELINE);
+        tensor_new_3d_with_stride(stage3_39_relu_out, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, DATASIZE, Relu_39_data[pid*2+i], stage3_conv42.cout * DATASIZE + CACHELINE);
         conv_add_bn_relu(&stage3_39_relu_out, &stage3_add12_out, &stage3_38_relu_out, &stage3_add11_out, conv2d_42_kernel_data, batch_normalization_39_new_alpha_data, batch_normalization_39_new_beta_data, stage3_conv42, stage3_conv42.cout * DATASIZE + CACHELINE);
     }
     barrier(ncores);
     stage_end[3] = read_csr_safe(cycle);
 
 /*
- * stage 4
+ * stage 4 1core for 2pictures at the same time
 */
     stage_start[4] = read_csr_safe(cycle);
 
     int ncores4 = ncores / 16; 
-    config_conv(stage4_conv43, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, 2048, 0, 0, 0, 0, 1, 1, 2, 2, 1, 1);
-    config_conv(stage4_conv44, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    config_conv(stage4_conv45, stage4_conv44.hout, stage4_conv44.wout, stage4_conv44.cout, 512,  1, 1, 1, 1, 3, 3, 2, 2, 1, 1);
-    config_conv(stage4_conv46, stage4_conv45.hout, stage4_conv45.wout, stage4_conv45.cout, 2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    config_conv(stage4_conv47, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    config_conv(stage4_conv48, stage4_conv47.hout, stage4_conv47.wout, stage4_conv47.cout, 512,  1, 1, 1, 1, 3, 3, 1, 1, 1, 1);
-    config_conv(stage4_conv49, stage4_conv48.hout, stage4_conv48.wout, stage4_conv48.cout, 2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    config_conv(stage4_conv50, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    config_conv(stage4_conv51, stage4_conv50.hout, stage4_conv50.wout, stage4_conv50.cout, 512,  1, 1, 1, 1, 3, 3, 1, 1, 1, 1);
-    config_conv(stage4_conv52, stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout, 2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
-    for (int i = 0; i < 2; i ++) {
-        tensor_new_3d_with_stride(stage3_39_relu_out, stage3_conv42.hout, stage3_conv42.wout, stage3_conv42.cout, DATASIZE, Relu_39_data[pid*2+i], stage3_conv42.cout * DATASIZE + CACHELINE);
-        tensor_new_3d_with_stride(stage4_conv43_out, stage4_conv43.hout, stage4_conv43.wout, stage4_conv43.cout, DATASIZE, conv2d_43_data[pid], stage4_conv43.cout * DATASIZE + CACHELINE);
-        conv_base(&stage4_conv43_out, &stage3_39_relu_out, conv2d_43_kernel_data, stage4_conv43, stage4_conv43.cout * DATASIZE + CACHELINE);
+    config_conv(stage4_conv43, 28, 14, 1024, 2048, 0, 0, 0, 0, 1, 1, 2, 2, 1, 1); // 2
+    config_conv(stage4_conv44, 28, 14, 1024, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1); // 2
+    config_conv(stage4_conv45, 14, 14, 512,  512,  1, 1, 1, 1, 3, 3, 2, 2, 1, 1);
+    config_conv(stage4_conv46, 14,  7, 512,  2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1); // 2
+    config_conv(stage4_conv47, 14,  7, 2048, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1); // 2
+    config_conv(stage4_conv48, 7,   7, 512,  512,  1, 1, 1, 1, 3, 3, 1, 1, 1, 1);
+    config_conv(stage4_conv49, 14,  7, 512,  2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
+    config_conv(stage4_conv50, 14,  7, 2048, 512,  0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
+    config_conv(stage4_conv51, 7,   7, 512,  512,  1, 1, 1, 1, 3, 3, 1, 1, 1, 1);
+    config_conv(stage4_conv52, 14,  7, 512,  2048, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1);
+
+    tensor_new_3d_with_stride(stage3_39_relu_out, 28, 14, 1024, DATASIZE, Relu_39_data[pid*2], stage3_conv42.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_conv43_out, stage4_conv43.hout, stage4_conv43.wout, stage4_conv43.cout, DATASIZE, conv2d_43_data[pid*2], stage4_conv43.cout * DATASIZE + CACHELINE);
+    conv_base(&stage4_conv43_out, &stage3_39_relu_out, conv2d_43_kernel_data, stage4_conv43, stage4_conv43.cout * DATASIZE + CACHELINE);
+        
+    tensor_new_3d_with_stride(stage4_40_relu_out, stage4_conv44.hout, stage4_conv44.wout, stage4_conv44.cout, DATASIZE, Relu_40_data[pid*2], stage4_conv44.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_40_relu_out, &stage3_39_relu_out, conv2d_44_kernel_data, batch_normalization_40_new_alpha_data, batch_normalization_40_new_beta_data, stage4_conv44, stage4_conv44.cout * DATASIZE + CACHELINE);
+
+    tensor_new_3d_with_stride(stage4_40_relu_out_0, 14, 14, 512, DATASIZE, Relu_40_data[pid*2], stage4_conv44.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_41_relu_out_0, stage4_conv45.hout, stage4_conv45.wout, stage4_conv45.cout, DATASIZE, Relu_41_data[pid*2], stage4_conv45.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_41_relu_out_0, &stage4_40_relu_out_0, conv2d_45_kernel_data, batch_normalization_41_new_alpha_data, batch_normalization_41_new_beta_data, stage4_conv45, stage4_conv45.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_40_relu_out_1, 14, 14, 512, DATASIZE, Relu_40_data[pid*2+1], stage4_conv44.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_41_relu_out_1, stage4_conv45.hout, stage4_conv45.wout, stage4_conv45.cout, DATASIZE, Relu_41_data[pid*2+1], stage4_conv45.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_41_relu_out_1, &stage4_40_relu_out_1, conv2d_45_kernel_data, batch_normalization_41_new_alpha_data, batch_normalization_41_new_beta_data, stage4_conv45, stage4_conv45.cout * DATASIZE + CACHELINE);
+    
+
+    tensor_new_3d_with_stride(stage4_add13_out, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, DATASIZE, add_13_data[pid*2], stage4_conv46.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_42_relu_out, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, DATASIZE, Relu_42_data[pid*2], stage4_conv46.cout * DATASIZE + CACHELINE);
+    conv_add_bn_relu(&stage4_42_relu_out, &stage4_add13_out, &stage4_41_relu_out_0, &stage4_conv43_out, conv2d_46_kernel_data, batch_normalization_42_new_alpha_data, batch_normalization_42_new_beta_data, stage4_conv46, stage4_conv46.cout * DATASIZE + CACHELINE);
+
+    tensor_new_3d_with_stride(stage4_43_relu_out, stage4_conv47.hout, stage4_conv47.wout, stage4_conv47.cout, DATASIZE, Relu_43_data[pid*2], stage4_conv47.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_43_relu_out, &stage4_42_relu_out, conv2d_47_kernel_data, batch_normalization_43_new_alpha_data, batch_normalization_43_new_beta_data, stage4_conv47, stage4_conv47.cout * DATASIZE + CACHELINE);
+
+    tensor_new_3d_with_stride(stage4_43_relu_out_0, 7, 7, 512, DATASIZE, Relu_43_data[pid*2], stage4_conv47.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_44_relu_out_0, stage4_conv48.hout, stage4_conv48.wout, stage4_conv48.cout, DATASIZE, Relu_44_data[pid*2], stage4_conv48.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_44_relu_out_0, &stage4_43_relu_out_0, conv2d_48_kernel_data, batch_normalization_44_new_alpha_data, batch_normalization_44_new_beta_data, stage4_conv48, stage4_conv48.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_43_relu_out_1, 7, 7, 512, DATASIZE, Relu_43_data[pid*2+1], stage4_conv47.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_44_relu_out_1, stage4_conv48.hout, stage4_conv48.wout, stage4_conv48.cout, DATASIZE, Relu_44_data[pid*2+1], stage4_conv48.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_44_relu_out_1, &stage4_43_relu_out_1, conv2d_48_kernel_data, batch_normalization_44_new_alpha_data, batch_normalization_44_new_beta_data, stage4_conv48, stage4_conv48.cout * DATASIZE + CACHELINE);
 
         
-        tensor_new_3d_with_stride(stage4_40_relu_out, stage4_conv44.hout, stage4_conv44.wout, stage4_conv44.cout, DATASIZE, Relu_40_data[pid], stage4_conv44.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_40_relu_out, &stage3_39_relu_out, conv2d_44_kernel_data, batch_normalization_40_new_alpha_data, batch_normalization_40_new_beta_data, stage4_conv44, stage4_conv44.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_add14_out, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, DATASIZE, add_14_data[pid*2], stage4_conv49.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_45_relu_out, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, DATASIZE, Relu_45_data[pid*2], stage4_conv49.cout * DATASIZE + CACHELINE);
+    conv_add_bn_relu(&stage4_45_relu_out, &stage4_add14_out, &stage4_44_relu_out_0, &stage4_add13_out, conv2d_49_kernel_data, batch_normalization_45_new_alpha_data, batch_normalization_45_new_beta_data, stage4_conv49, stage4_conv49.cout * DATASIZE + CACHELINE);
+        
+    tensor_new_3d_with_stride(stage4_46_relu_out, stage4_conv50.hout, stage4_conv50.wout, stage4_conv50.cout, DATASIZE, Relu_46_data[pid*2], stage4_conv50.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_46_relu_out, &stage4_45_relu_out, conv2d_50_kernel_data, batch_normalization_46_new_alpha_data, batch_normalization_46_new_beta_data, stage4_conv50, stage4_conv50.cout * DATASIZE + CACHELINE);
+
+    tensor_new_3d_with_stride(stage4_46_relu_out_0, 7, 7, 512, DATASIZE, Relu_46_data[pid*2], stage4_conv50.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_47_relu_out_0, stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout, DATASIZE, Relu_47_data[pid*2], stage4_conv51.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_47_relu_out_0, &stage4_46_relu_out_0, conv2d_51_kernel_data, batch_normalization_47_new_alpha_data, batch_normalization_47_new_beta_data, stage4_conv51, stage4_conv51.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_46_relu_out_1, 7, 7, 512, DATASIZE, Relu_46_data[pid*2+1], stage4_conv50.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_47_relu_out_1, stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout, DATASIZE, Relu_47_data[pid*2+1], stage4_conv51.cout * DATASIZE + CACHELINE);
+    conv_bn_relu(&stage4_47_relu_out_1, &stage4_46_relu_out_1, conv2d_51_kernel_data, batch_normalization_47_new_alpha_data, batch_normalization_47_new_beta_data, stage4_conv51, stage4_conv51.cout * DATASIZE + CACHELINE);
 
         
-        tensor_new_3d_with_stride(stage4_41_relu_out, stage4_conv45.hout, stage4_conv45.wout, stage4_conv45.cout, DATASIZE, Relu_41_data[pid], stage4_conv45.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_41_relu_out, &stage4_40_relu_out, conv2d_45_kernel_data, batch_normalization_41_new_alpha_data, batch_normalization_41_new_beta_data, stage4_conv45, stage4_conv45.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_add13_out, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, DATASIZE, add_13_data[pid], stage4_conv46.cout * DATASIZE + CACHELINE);
-        tensor_new_3d_with_stride(stage4_42_relu_out, stage4_conv46.hout, stage4_conv46.wout, stage4_conv46.cout, DATASIZE, Relu_42_data[pid], stage4_conv46.cout * DATASIZE + CACHELINE);
-        conv_add_bn_relu(&stage4_42_relu_out,& stage4_add13_out, &stage4_41_relu_out, &stage4_conv43_out, conv2d_46_kernel_data, batch_normalization_42_new_alpha_data, batch_normalization_42_new_beta_data, stage4_conv46, stage4_conv46.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_43_relu_out, stage4_conv47.hout, stage4_conv47.wout, stage4_conv47.cout, DATASIZE, Relu_43_data[pid], stage4_conv47.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_43_relu_out, &stage4_42_relu_out, conv2d_47_kernel_data, batch_normalization_43_new_alpha_data, batch_normalization_43_new_beta_data, stage4_conv47, stage4_conv47.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_44_relu_out, stage4_conv48.hout, stage4_conv48.wout, stage4_conv48.cout, DATASIZE, Relu_44_data[pid], stage4_conv48.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_44_relu_out, &stage4_43_relu_out, conv2d_48_kernel_data, batch_normalization_44_new_alpha_data, batch_normalization_44_new_beta_data, stage4_conv48, stage4_conv48.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_add14_out, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, DATASIZE, add_14_data[pid], stage4_conv49.cout * DATASIZE + CACHELINE);
-        tensor_new_3d_with_stride(stage4_45_relu_out, stage4_conv49.hout, stage4_conv49.wout, stage4_conv49.cout, DATASIZE, Relu_45_data[pid], stage4_conv49.cout * DATASIZE + CACHELINE);
-        conv_add_bn_relu(&stage4_45_relu_out, &stage4_add14_out, &stage4_44_relu_out, &stage4_add13_out, conv2d_49_kernel_data, batch_normalization_45_new_alpha_data, batch_normalization_45_new_beta_data, stage4_conv49, stage4_conv49.cout * DATASIZE + CACHELINE);
-        
-        tensor_new_3d_with_stride(stage4_46_relu_out, stage4_conv50.hout, stage4_conv50.wout, stage4_conv50.cout, DATASIZE, Relu_46_data[pid], stage4_conv50.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_46_relu_out, &stage4_45_relu_out, conv2d_50_kernel_data, batch_normalization_46_new_alpha_data, batch_normalization_46_new_beta_data, stage4_conv50, stage4_conv50.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_47_relu_out, stage4_conv51.hout, stage4_conv51.wout, stage4_conv51.cout, DATASIZE, Relu_47_data[pid], stage4_conv51.cout * DATASIZE + CACHELINE);
-        conv_bn_relu(&stage4_47_relu_out, &stage4_46_relu_out, conv2d_51_kernel_data, batch_normalization_47_new_alpha_data, batch_normalization_47_new_beta_data, stage4_conv51, stage4_conv51.cout * DATASIZE + CACHELINE);
-
-        
-        tensor_new_3d_with_stride(stage4_add15_out, stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout, DATASIZE, add_15_data[pid], stage4_conv52.cout * DATASIZE + CACHELINE);
-        tensor_new_3d_with_stride(stage4_48_relu_out, stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout, DATASIZE, Relu_48_data[pid], stage4_conv52.cout * DATASIZE + CACHELINE);
-        conv_add_bn_relu(&stage4_48_relu_out, &stage4_add15_out, &stage4_47_relu_out, &stage4_add14_out, conv2d_52_kernel_data, batch_normalization_48_new_alpha_data, batch_normalization_48_new_beta_data, stage4_conv52, stage4_conv52.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_add15_out, stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout, DATASIZE, add_15_data[pid*2], stage4_conv52.cout * DATASIZE + CACHELINE);
+    tensor_new_3d_with_stride(stage4_48_relu_out, stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout, DATASIZE, Relu_48_data[pid*2], stage4_conv52.cout * DATASIZE + CACHELINE);
+    conv_add_bn_relu(&stage4_48_relu_out, &stage4_add15_out, &stage4_47_relu_out_0, &stage4_add14_out, conv2d_52_kernel_data, batch_normalization_48_new_alpha_data, batch_normalization_48_new_beta_data, stage4_conv52, stage4_conv52.cout * DATASIZE + CACHELINE);
 
     stage_end[4] = read_csr_safe(cycle);
-    
+
 /**
  * post
  * 
  */
-        stage_start[5] = read_csr_safe(cycle);
-        config_pool(stage5_avgpool, stage4_conv52.hout, stage4_conv52.wout, stage4_conv52.cout, stage4_conv52.cout, 0, 0, 0, 0, stage4_conv52.hout, stage4_conv52.wout, 1, 1);
-        tensor_new_3d(stage5_avgpool_out, stage5_avgpool.hout, stage5_avgpool.wout, stage5_avgpool.cout, DATASIZE, Mean_data[pid]);
-        avgpool_mean(&stage5_avgpool_out, &stage4_48_relu_out, &stage5_avgpool);
+    stage_start[5] = read_csr_safe(cycle);
+    config_pool(stage5_avgpool, 7, 7, 2048, 2048, 0, 0, 0, 0, 7, 7, 1, 1);
+    tensor_new_3d_with_stride(stage4_48_relu_out_0, 7, 7, 2048, DATASIZE, Relu_48_data[pid*2], 2048 * DATASIZE + CACHELINE);
+    tensor_new_3d(stage5_avgpool_out_0, 1, 1, 2048, DATASIZE, Mean_data[pid*2]);
+    avgpool_mean(&stage5_avgpool_out_0, &stage4_48_relu_out_0, &stage5_avgpool);
+    tensor_new_3d_with_stride(stage4_48_relu_out_1, 7, 7, 2048, DATASIZE, Relu_48_data[pid*2+1], 2048 * DATASIZE + CACHELINE);
+    tensor_new_3d(stage5_avgpool_out_1, 1, 1, 2048, DATASIZE, Mean_data[pid*2+1]);
+    avgpool_mean(&stage5_avgpool_out_1, &stage4_48_relu_out_1, &stage5_avgpool);
 
-        tensor_new_2d(stage5_avgpool_1d, 1, stage5_avgpool.hout * stage5_avgpool.wout * stage5_avgpool.cout, DATASIZE, Mean_data[pid]);
-        tensor_new_2d(stage5_dense_kernel_f16, 2048, 1001, DATASIZE, dense_kernel_data);
-        tensor_new_2d(stage5_matmul_out, 1, 1001, DATASIZE, MatMul_data[pid]);
-        matmul(&stage5_matmul_out, &stage5_avgpool_1d, &stage5_dense_kernel_f16);
+    tensor_new_2d(stage5_avgpool_1d, 2, 2048, DATASIZE, Mean_data[pid*2]);
+    tensor_new_2d(stage5_dense_kernel_f16, 2048, 1001, DATASIZE, dense_kernel_data);
+    tensor_new_2d(stage5_matmul_out, 2, 1001, DATASIZE, MatMul_data[pid*2]);
+    matmul(&stage5_matmul_out, &stage5_avgpool_1d, &stage5_dense_kernel_f16);
 
-        tensor_new_2d(stage5_bias_f32, 1, 1001, sizeof(float32_t), dense_bias_data);
-        tensor_new_2d(stage5_bias_f16, 1, 1001, DATASIZE, bias_tmp_data[pid]);
-        cast_f32_to_f16(&stage5_bias_f16, &stage5_bias_f32);
-        tensor_new_2d(stage5_bias_add_out, 1, 1001, DATASIZE, bias_add_fp16_tmp_data[pid]);
-        add(&stage5_bias_add_out, &stage5_matmul_out, &stage5_bias_f16);
+    tensor_new_2d(stage5_bias_f32, 1, 1001, sizeof(float32_t), dense_bias_data);
+    tensor_new_2d(stage5_bias_f16_0, 1, 1001, DATASIZE, bias_tmp_data[pid*2]);
+    cast_f32_to_f16(&stage5_bias_f16_0, &stage5_bias_f32);
+    tensor_new_2d(stage5_bias_f16_1, 1, 1001, DATASIZE, bias_tmp_data[pid*2+1]);
+    cast_f32_to_f16(&stage5_bias_f16_1, &stage5_bias_f32);
+    tensor_new_2d(stage5_bias_f16, 2, 1001, DATASIZE, bias_tmp_data[pid*2]);
+    tensor_new_2d(stage5_bias_add_out, 2, 1001, DATASIZE, bias_add_fp16_tmp_data[pid*2]);
+    add(&stage5_bias_add_out, &stage5_matmul_out, &stage5_bias_f16);
 
-        tensor_new_2d(stage5_bias_add_out_f32, 1, 1001, sizeof(float32_t), bias_add_fp32_tmp_data[pid]);
-        cast_f16_to_f32(&stage5_bias_add_out_f32, &stage5_bias_add_out);
-        tensor_new_2d(stage5_softmax_out_f32, 1, 1001, sizeof(float32_t), softmax_tensor_fp32_data[pid]);
-        softmax(&stage5_softmax_out_f32, &stage5_bias_add_out_f32);
+    tensor_new_2d(stage5_bias_add_out_f32, 2, 1001, sizeof(float32_t), bias_add_fp32_tmp_data[pid*2]);
+    cast_f16_to_f32(&stage5_bias_add_out_f32, &stage5_bias_add_out);
 
-        tensor_new_2d(stage5_softmax_out_f16, 1, 1001, DATASIZE, softmax_tensor_fp16_data[pid*2+i]);
-        cast_f32_to_f16(&stage5_softmax_out_f16, &stage5_softmax_out_f32);
-        stage_end[5] = read_csr_safe(cycle);
-    }
+    tensor_new_2d(stage5_bias_add_out_f32_0, 1, 1001, sizeof(float32_t), bias_add_fp32_tmp_data[pid*2]);
+    tensor_new_2d(stage5_softmax_out_f32_0, 1, 1001, sizeof(float32_t), softmax_tensor_fp32_data[pid*2]);
+    softmax(&stage5_softmax_out_f32_0, &stage5_bias_add_out_f32_0);
+    tensor_new_2d(stage5_bias_add_out_f32_1, 1, 1001, sizeof(float32_t), bias_add_fp32_tmp_data[pid*2+1]);
+    tensor_new_2d(stage5_softmax_out_f32_1, 1, 1001, sizeof(float32_t), softmax_tensor_fp32_data[pid*2+1]);
+    softmax(&stage5_softmax_out_f32_1, &stage5_bias_add_out_f32_1);
+
+    tensor_new_2d(stage5_softmax_out_f32, 2, 1001, sizeof(float32_t), softmax_tensor_fp32_data[pid*2]);
+    tensor_new_2d(stage5_softmax_out_f16, 2, 1001, DATASIZE, softmax_tensor_fp16_data[pid*2]);
+    cast_f32_to_f16(&stage5_softmax_out_f16, &stage5_softmax_out_f32);
+    stage_end[5] = read_csr_safe(cycle);
 
     barrier(ncores);
     return 0;

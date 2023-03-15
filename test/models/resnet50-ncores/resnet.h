@@ -29,11 +29,13 @@
 
 
 #define DATASIZE 2
-#define CACHELINE 128
-#define ZERO 0
+#ifdef GEM5
+    #define CACHELINE 128
+#else
+    #define CACHELINE 0
+#endif
 
-
-int resnet50_ncores(void *indata, int ncores, int pid);
+int resnet50_ncores(uint8_t *indata, int ncores, int pid);
 
 int conv_bn_relu_ncores(Tensor *relu_out, Tensor *conv_in, void *pweight, void *palpha, void *pbeta, Config sst, int wstride, int ncores, int pid);
 int conv_ncores(Tensor *conv_out, Tensor *conv_in, void *pweight, Config sst, int wstride, int ncores, int pid);
@@ -109,28 +111,28 @@ uint8_t Relu_38_data[8][14*14*256*sizeof(float16_t)] __attribute__((__section__(
 uint8_t add_12_data[8][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 uint8_t Relu_39_data[16][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 
-uint8_t conv2d_43_data[8][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_40_data[8][14*14*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_41_data[8][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t add_13_data[8][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_42_data[8][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_43_data[8][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_44_data[8][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t add_14_data[8][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_45_data[8][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_46_data[8][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_47_data[8][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t add_15_data[8][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t Relu_48_data[8][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t conv2d_43_data[16][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_40_data[16][14*14*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_41_data[16][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t add_13_data[16][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_42_data[16][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_43_data[16][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_44_data[16][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t add_14_data[16][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_45_data[16][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_46_data[16][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_47_data[16][7*7*512*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t add_15_data[16][14*14*1024*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Relu_48_data[16][7*7*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 
-uint8_t Mean_data[8][1*1*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
-uint8_t MatMul_data[8][1*1001*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t Mean_data[16][1*1*2048*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t MatMul_data[16][1*1001*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 uint8_t softmax_tensor_fp16_data[16][1*1001*sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
 
 
-uint8_t bias_tmp_data[8][1001*sizeof(float16_t)];
-uint8_t bias_add_fp16_tmp_data[8][1001*sizeof(float16_t)];
-uint32_t bias_add_fp32_tmp_data[8][1001*sizeof(float32_t)] __attribute__((aligned(64)));
-uint32_t softmax_tensor_fp32_data[8][1001*sizeof(float32_t)] __attribute__((aligned(64)));
+uint8_t bias_tmp_data[16][1001*sizeof(float16_t)];
+uint8_t bias_add_fp16_tmp_data[16][1001*sizeof(float16_t)];
+uint8_t bias_add_fp32_tmp_data[16][1001*sizeof(float32_t)] __attribute__((aligned(64)));
+uint8_t softmax_tensor_fp32_data[16][1001*sizeof(float32_t)] __attribute__((aligned(64)));
 
 #endif

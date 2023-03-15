@@ -22,7 +22,7 @@ sys.path.append("../..")
 from check import *
 
 title = "8 CORES for Resnet50 Net"
-opt_levels = {"16": "-O2 -D__RVM__"}
+opt_levels = {"loop4": "-O2 -D__RVM__ -DGEM5 -NLOOPS=4", "loop8": "-O2 -D__RVM__ -DGEM5 -NLOOPS=8"}
 
 pwd = os.path.dirname(os.path.realpath(__file__))
 model_path = os.path.join(pwd, "resnet-50_v2.pb")
@@ -33,6 +33,8 @@ begin_addr = 0
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
 
+if simulator == 'spike':
+    opt_levels = {"16": "-O2 -D__RVM__ -NLOOPS=1 -DSPIKE"}
 
 # preprocess one picture
 def preprocess(img_path):
@@ -107,13 +109,19 @@ def test(num, params, defs, ncores=8):
     os.system(f"rm *.o && rm -rf build/{num} && mkdir -p build/{num}")
     os.system(f"make clean && make DEFS='{defs} -DN={num} -DCORENUMS={ncores}' run SIM={simulator} NUM={num}  NCORES={ncores}> build/{num}/test.log 2>&1")
 
-    # get_golden_check(num, "resnet_model/Relu", BATCH)
+    get_golden_check(num, "resnet_model/Relu", BATCH)
     # # get_golden_check(num,  "resnet_model/conv2d_1/Conv2D", BATCH)
     # # get_golden_check(num,  "resnet_model/Relu_1", BATCH)
     # # get_golden_check(num,  "resnet_model/Relu_4", BATCH)
     get_golden_check(num, "resnet_model/Relu_9", BATCH)
     get_golden_check(num, "resnet_model/Relu_21", BATCH)
     get_golden_check(num, "resnet_model/Relu_39", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_40", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_41", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_44", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_48", BATCH)
+    get_golden_check(num, "resnet_model/Mean", BATCH)
+    get_golden_check(num, "resnet_model/dense/MatMul", BATCH)
     get_golden_check(num, "softmax_tensor_fp16", BATCH)
 
 
