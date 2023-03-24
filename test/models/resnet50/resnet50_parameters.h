@@ -6,7 +6,7 @@
 #include "../../../include/incbin.h"
 
 extern uint8_t imagenet_pic_data_data[];
-INCBIN(imagenet_pic_data_data, "imagenet_pic_data.bin",  ".scdata.params" );
+INCBIN(imagenet_pic_data_data, "imagenet_pic_data_pad.bin",  ".scdata.params" );
 
 extern uint8_t conv2d_kernel_data[];
 INCBIN(conv2d_kernel_data, "conv2d_kernel.bin",  ".scdata.params" );
