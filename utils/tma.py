@@ -11,6 +11,9 @@ import math
 import re
 import os
 
+from inspect import getmembers
+from cffi import FFI
+
 def GetEV(retpath):
     EV = dict()
     with open(retpath, "r") as f:
@@ -21,9 +24,39 @@ def GetEV(retpath):
             EV[data[0]] = abs(int(data[1].rstrip()))
     return EV
 
-def GetMetrics():
-    logpath = 'vcs.log'
-    EV = GetEV(logpath)
+def cdata_dict(ffi, cd):
+    if isinstance(cd, ffi.CData):
+        try:
+            return ffi.string(cd)
+        except TypeError:
+            try:
+                return [cdata_dict(ffi, x) for x in cd]
+            except TypeError:
+                return {k: cdata_dict(ffi, v) for k, v in getmembers(cd)}
+    else:
+        return cd
+
+def GetMetrics(datapath):
+    ffi = FFI()
+
+    with open("../../../src/perf-data.h", "r") as f:
+        cdefs = f.read()
+        ffi.cdef(cdefs)
+        f.close()
+
+    perf_data = ffi.new("tma_data_t[]", 8)
+
+    with open(datapath, "rb") as f:
+        f.readinto(ffi.buffer(perf_data))
+
+    EVS = cdata_dict(ffi, perf_data)
+
+    EV = EVS[0]
+    EV['memLatency'] = 0
+    EV['memStallsL2Miss'] = 0
+    EV['memStallsL3Miss'] = 0
+
+
     METRICS = dict()
 
     PipelineWidth = 2
@@ -53,6 +86,7 @@ def GetMetrics():
     METRICS['retiredIntRatio']     = round(EV['intTotalRetired'] * 100 / EV['instret'], 2)
     METRICS['retiredFloatRatio']   = round(EV['fpTotalRetired']  * 100 / EV['instret'], 2)
     METRICS['retiredRvvRatio']     = round(EV['rvvTotalRetired'] * 100 / EV['instret'], 2)
+    METRICS['retiredRvmRatio']     = round(EV['rvmTotalRetired'] * 100 / EV['instret'], 2)
 
     METRICS['memory_bound']     = round((EV['memStallsAnyLoad'] + EV['memStallsStores']) * 100 / EV['exeStallCycles'], 2)
     METRICS['core_bound']       = max(0, round(100 - METRICS['memory_bound'], 2))
@@ -62,17 +96,36 @@ def GetMetrics():
     METRICS['itlb_miss']        = round(EV['iTLBStallCycles'] * 100 / FETCH_LATENCY_CYCLES, 2)
     METRICS['branch_resteers']  = max(round((EV['badResteers'] + EV['unknowBanchCycles']) * 100 / FETCH_LATENCY_CYCLES, 2), 0)
 
-    METRICS['branchRatio']      = round(EV['branchRetired'] * 100 / EV['intTotalRetired'], 2)
-    METRICS['dividerRatio']     = round(EV['intDividerRetired'] * 100/ EV['intTotalRetired'], 2)
+    METRICS['branchRatio']      = round(EV['branchRetired'] * 100 / EV['instret'], 2)
+    METRICS['dividerRatio']     = round(EV['intDividerRetired'] * 100/ EV['instret'], 2)
     METRICS['intOtherRatio']    = round(100 - METRICS['branchRatio'] - METRICS['dividerRatio'], 2)
 
-    METRICS['fpDividerRatio']   = round(EV['fpDividerRetired'] * 100 / EV['fpTotalRetired'], 2)
-    METRICS['fpOtherRatio']     = round(100 - METRICS['fpDividerRatio'], 2)
+    if EV['fpTotalRetired'] == 0:
+        METRICS['fpDividerRatio']   = 0
+        METRICS['fpOtherRatio']     = 0
+    else :
+        METRICS['fpDividerRatio']   = round(EV['fpDividerRetired'] * 100 / EV['fpTotalRetired'], 2)
+        METRICS['fpOtherRatio']     = round(100 - METRICS['fpDividerRatio'], 2)
 
-    METRICS['rvvVsetRatio']     = round(EV['rvvVsetRetired'] * 100  / EV['rvvTotalRetired'], 2)
-    METRICS['rvvLoadRatio']     = round(EV['rvvLoadRetired'] * 100  / EV['rvvTotalRetired'], 2)
-    METRICS['rvvStoreRatio']    = round(EV['rvvStoreRetired'] * 100 / EV['rvvTotalRetired'], 2)
-    METRICS['rvvOtherRatio']    = round(100 - METRICS['rvvVsetRatio'] - METRICS['rvvLoadRatio'] - METRICS['rvvStoreRatio'], 2)
+    if EV['rvvTotalRetired'] == 0:
+        METRICS['rvvLoadRatio']     = 0
+        METRICS['rvvStoreRatio']    = 0
+        METRICS['rvvOtherRatio']    = 0
+    else :
+        METRICS['rvvLoadRatio']     = round(EV['rvvLoadRetired'] * 100  / EV['rvvTotalRetired'], 2)
+        METRICS['rvvStoreRatio']    = round(EV['rvvStoreRetired'] * 100 / EV['rvvTotalRetired'], 2)
+        METRICS['rvvOtherRatio']    = round(100 - METRICS['rvvLoadRatio'] - METRICS['rvvStoreRatio'], 2)
+
+    if EV['rvmTotalRetired'] == 0:
+        METRICS['rvmMsetRatio']     = 0
+        METRICS['rvmLoadRatio']     = 0
+        METRICS['rvmStoreRatio']    = 0
+        METRICS['rvmOtherRatio']    = 0
+    else :
+        METRICS['rvmMsetRatio']     = round(EV['rvmMsetRetired'] * 100  / EV['rvmTotalRetired'], 2)
+        METRICS['rvmLoadRatio']     = round(EV['rvmLoadRetired'] * 100  / EV['rvmTotalRetired'], 2)
+        METRICS['rvmStoreRatio']    = round(EV['rvmStoreRetired'] * 100 / EV['rvmTotalRetired'], 2)
+        METRICS['rvmOtherRatio']    = round(100 - METRICS['rvmMsetRatio'] - METRICS['rvmLoadRatio'] - METRICS['rvmStoreRatio'], 2)
 
     METRICS['divider']          = round(EV['divBusyCycles'] * 100 / CLKS / METRICS['core_bound'], 2)
     METRICS['exe_ports_util']   = round(100 - METRICS['divider'], 2)
@@ -87,15 +140,19 @@ def GetMetrics():
     METRICS['Mclear_resteers']      = round((1 - BR_MISPRED_FRACTION) * EV['badResteers'] * 100 / CLKS, 2)
     METRICS['unknow_branches']      = round(EV['unknowBanchCycles'] * 100 / CLKS, 2)
 
-    #METRICS['serializing_Op'] = round(EV['robStallCycles'] * 100 / CLKS(), 2)
-    METRICS['memUnitUtil'] = round(EV['memUnitUtilization'] * 100 / CLKS, 2)
-    METRICS['jmpUnitUtil'] = round(EV['jmpUnitUtilization'] * 100 / CLKS, 2)
+    # METRICS['serializing_Op'] = round(EV['robStallCycles'] * 100 / CLKS(), 2)
+    # METRICS['memUnitUtil'] = round(EV['memUnitUtilization'] * 100 / CLKS, 2)
+    # METRICS['jmpUnitUtil'] = round(EV['jmpUnitUtilization'] * 100 / CLKS, 2)
     METRICS['aluUnitUtil'] = round(EV['aluUnitUtilization'] * 100 / CLKS, 2)
     METRICS['fpuUnitUtil'] = round(EV['fpuUnitUtilization'] * 100 / CLKS, 2)
     METRICS['vecUnitUtil'] = round(EV['vecUnitUtilization'] * 100 / CLKS, 2)
-    METRICS['vmxUnitUtil'] = round(EV['vmxUnitUtilization'] * 100 / CLKS, 2)
+    METRICS['matUnitUtil'] = round(EV['matUnitUtilization'] * 100 / CLKS, 2)
 
-    METRICS['mem_latency']   = round(EV['memLatency'] * 100 / EV['memStallsL1Miss'], 2)
+    if EV['memStallsL1Miss'] == 0:
+      METRICS['mem_latency']   = 0
+    else :   
+        METRICS['mem_latency']   = round(EV['memLatency'] * 100 / EV['memStallsL1Miss'], 2)
+        
     METRICS['mem_bandwidth'] = round(100 - METRICS['mem_latency'], 2)
 
     return METRICS
@@ -105,8 +162,8 @@ def label(x, y, width, height, rotation, text, text_size, dy = 1):
     yy = y + height / 2 - dy
     plt.text(xx, yy, text, ha="center", family='sans-serif', rotation = rotation, size=text_size)
 
-def PlotMetrics(case_title):
-    METRICS = GetMetrics()
+def PlotMetrics(logpath, figpath, case_title):
+    METRICS = GetMetrics(logpath)
     XYLevel0 = dict()
     XYLevel1 = dict()
     XYLevel2 = dict()
@@ -144,14 +201,14 @@ def PlotMetrics(case_title):
 
 
     x = x + width + largePads
-    XYLevel0['retiring'] = (x, y, 1.8 * width, height)
-    retiring = mpathes.FancyBboxPatch((x, y), 1.8 * width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    XYLevel0['retiring'] = (x, y, 2.2 * width, height)
+    retiring = mpathes.FancyBboxPatch((x, y), 2.2 * width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(retiring)
     text = "Retiring" + "\n" + str(METRICS['retiring']) + "%"
-    label(x, y, 1.8 * width, height, rotation, text, text_size)
+    label(x, y, 2.2 * width, height, rotation, text, text_size)
 
 
-    x = x + 1.8 * width + largePads
+    x = x + 2.2 * width + largePads
     XYLevel0['backend_bound'] = (x, y, 1.8 * width, height)
     backend_bound = mpathes.FancyBboxPatch((x, y), 1.8 * width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(backend_bound)
@@ -193,7 +250,7 @@ def PlotMetrics(case_title):
 
 
     #------------------
-    width = (XYLevel0['retiring'][2] - 2 * largePads) * 3 / 9
+    width = (XYLevel0['retiring'][2] - 3 * largePads) * 3 / 12
     x = XYLevel0['retiring'][0]
     XYLevel1['scalarInt'] = (x, y, width, height)
     intRetiredRatio = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
@@ -202,7 +259,7 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size)
 
     x = x + width + largePads
-    width = (XYLevel0['retiring'][2] - 2 * largePads) * 2 / 9
+    width = (XYLevel0['retiring'][2] - 3 * largePads) * 2 / 12
     XYLevel1['scalarFloat'] = (x, y, width, height)
     fpRetiredRatio = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(fpRetiredRatio)
@@ -210,16 +267,24 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size)
 
     x = x + width + largePads
-    width = (XYLevel0['retiring'][2] - 2 * largePads) * 4 / 9
+    width = (XYLevel0['retiring'][2] - 3 * largePads) * 3 / 12
     XYLevel1['vector'] = (x, y, width, height)
     rvvRetiredRatio = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(rvvRetiredRatio)
     text = "Vector" +"\n" + str(METRICS['retiredRvvRatio']) + "%"
     label(x, y, width, height, rotation, text, text_size)
 
+    x = x + width + largePads
+    width = (XYLevel0['retiring'][2] - 3 * largePads) * 4 / 12
+    XYLevel1['matrix'] = (x, y, width, height)
+    rvmRetiredRatio = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(rvmRetiredRatio)
+    text = "Matrix" +"\n" + str(METRICS['retiredRvmRatio']) + "%"
+    label(x, y, width, height, rotation, text, text_size)
+
     #------------------
     x = XYLevel0['backend_bound'][0]
-    width = (XYLevel0['backend_bound'][2] - 1 * largePads) * 7 / 11
+    width = (XYLevel0['backend_bound'][2] - 1 * largePads) * 5 / 9
     XYLevel1['core_bound'] = (x, y, width, height)
     core_bound = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(core_bound)
@@ -227,7 +292,7 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size, dy = 2)
 
     x = x + width + largePads
-    width = (XYLevel0['backend_bound'][2] - 1 * largePads) * 4 / 11
+    width = (XYLevel0['backend_bound'][2] - 1 * largePads) * 4 / 9
     XYLevel1['memory_bound'] = (x, y, width, height)
     memory_bound = mpathes.FancyBboxPatch((x, y), width, height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(memory_bound)
@@ -306,15 +371,8 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size, dy = 1.5)
 
     #------------------
-    width = (XYLevel1['vector'][2] - 3* smallPads) / 4
+    width = (XYLevel1['vector'][2] - 2*smallPads) / 3
     x = XYLevel1['vector'][0]
-    XYLevel2['rvvVsetRatio'] = (x, y, width, height)
-    rvv_vset_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
-    ax.add_patch(rvv_vset_ratio)
-    text = "vset   " + str(METRICS['rvvVsetRatio']) + "%"
-    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
-
-    x = x + width + smallPads
     XYLevel2['rvvLoadRatio'] = (x, y, width, height)
     rvv_load_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(rvv_load_ratio)
@@ -336,7 +394,37 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size, dy = 1.5)
 
     #------------------
-    width = (XYLevel1['core_bound'][2] - smallPads) / 7
+    width = (XYLevel1['matrix'][2] - 3*smallPads) / 4
+    x = XYLevel1['matrix'][0]
+    XYLevel2['rvmMsetRatio'] = (x, y, width, height)
+    rvm_mset_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(rvm_mset_ratio)
+    text = "mset  " + str(METRICS['rvmMsetRatio']) + "%"
+    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
+
+    x = x + width + smallPads
+    XYLevel2['rvmLoadRatio'] = (x, y, width, height)
+    rvm_load_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(rvm_load_ratio)
+    text = "mload " + str(METRICS['rvmLoadRatio']) + "%"
+    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
+
+    x = x + width + smallPads
+    XYLevel2['rvmStoreRatio'] = (x, y, width, height)
+    rvm_store_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(rvm_store_ratio)
+    text = "mstore " + str(METRICS['rvmStoreRatio']) + "%"
+    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
+
+    x = x + width + smallPads
+    XYLevel2['rvmOtherRatio'] = (x, y, width, height)
+    rvm_other_ratio = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(rvm_other_ratio)
+    text = "others " + str(METRICS['rvmOtherRatio']) + "%"
+    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
+
+    #------------------
+    width = (XYLevel1['core_bound'][2] - smallPads) / 5
     x = XYLevel1['core_bound'][0]
     XYLevel2['divider'] = (x, y, width, height)
     divider_busy_cycles = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
@@ -345,7 +433,7 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size, dy = 1.5)
 
     x = x + width + smallPads
-    width = (XYLevel1['core_bound'][2] - smallPads) * 6 / 7
+    width = (XYLevel1['core_bound'][2] - smallPads) * 4 / 5
     rotation = 0
     XYLevel2['exe_ports_util'] = (x, y, width, height)
     exe_ports_util = mpathes.FancyBboxPatch((x, y), width, 2.2 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
@@ -411,22 +499,8 @@ def PlotMetrics(case_title):
     # label(x, y, width, height, rotation, text, text_size)
 
     #---------
-    width = (XYLevel2['exe_ports_util'][2] - 5 * smallPads) / 6
+    width = (XYLevel2['exe_ports_util'][2] - 3 * smallPads) / 4
     x = XYLevel2['exe_ports_util'][0]
-    XYLevel3['memUnitUtil'] = (x, y, width, height)
-    mem_unit_util = mpathes.FancyBboxPatch((x, y), width, 2.5 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
-    ax.add_patch(mem_unit_util)
-    text = "mem unit " + str(METRICS['memUnitUtil']) + "%"
-    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
-
-    x = x + width + smallPads
-    XYLevel3['jmpUnitUtil'] = (x, y, width, height)
-    jmp_unit_util = mpathes.FancyBboxPatch((x, y), width, 2.5 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
-    ax.add_patch(jmp_unit_util)
-    text = "jmp unit " + str(METRICS['jmpUnitUtil']) + "%"
-    label(x, y, width, height, rotation, text, text_size, dy = 1.5)
-
-    x = x + width + smallPads
     XYLevel3['aluUnitUtil'] = (x, y, width, height)
     alu_unit_util = mpathes.FancyBboxPatch((x, y), width, 2.5 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
     ax.add_patch(alu_unit_util)
@@ -448,10 +522,10 @@ def PlotMetrics(case_title):
     label(x, y, width, height, rotation, text, text_size, dy = 1.5)
 
     x = x + width + smallPads
-    XYLevel3['vmxUnitUtil'] = (x, y, width, height)
-    vmx_unit_util = mpathes.FancyBboxPatch((x, y), width, 2.5 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
-    ax.add_patch(vmx_unit_util)
-    text = "vmx unit " + str(METRICS['vmxUnitUtil']) + "%"
+    XYLevel3['matUnitUtil'] = (x, y, width, height)
+    mat_unit_util = mpathes.FancyBboxPatch((x, y), width, 2.5 * height, color='r', alpha=0.3, boxstyle=mpathes.BoxStyle("Round", pad=pads))
+    ax.add_patch(mat_unit_util)
+    text = "mat unit " + str(METRICS['matUnitUtil']) + "%"
     label(x, y, width, height, rotation, text, text_size, dy = 1.5)
 
     #------------------
@@ -474,4 +548,4 @@ def PlotMetrics(case_title):
     plt.axis('off')
     plt.suptitle(case_title, y = 0.9)
     plt.title("IPC = " + str(METRICS['IPC']), y = 0)
-    plt.savefig('test.png', dpi=300)
+    plt.savefig(figpath, dpi=300)

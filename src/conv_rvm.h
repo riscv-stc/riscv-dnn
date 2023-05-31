@@ -1,5 +1,5 @@
-#ifndef __CONV_H__
-#define __CONV_H__
+#ifndef __CONV_RVM_H__
+#define __CONV_RVM_H__
 
 #include "tensor.h"
 #include <stddef.h>
@@ -31,8 +31,6 @@ static inline int conv_matrix(Tensor *dst, Tensor *src, Tensor *weight, Tensor *
     int hout = ss->hout;
     int wout = ss->wout;
     int cout = ss->cout;
-
-    int vlmax = VLENB * 4 / 2;
 
     float16_t *psrc = (float16_t *)src->data;
     float16_t *psrcPad = (float16_t *)srcPad->data;

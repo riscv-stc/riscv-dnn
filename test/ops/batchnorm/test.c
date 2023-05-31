@@ -33,7 +33,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    batchnorm(&dstMat, &srcMat, &gamMat, &betaMat);
+    for (int i = 0; i < NLOOPS; i++) {
+        batchnorm(&dstMat, &srcMat, &gamMat, &betaMat);
+    }
 
     PERF_END();
     

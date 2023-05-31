@@ -10,100 +10,95 @@
 
 #include "encoding.h"
 
+#include "perf-data.h"
+
+#define CORE_MAX 8
+
 #define read_csr_safe(reg) ({ register long __tmp asm("a0"); \
             asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
             __tmp; })
 
-volatile uint64_t csr_cycle = 1;
-volatile uint64_t csr_opsCommitted = 1;
-volatile uint64_t csr_machineClearCycles = 1;
-volatile uint64_t csr_icacheStallCycles = 1;
-volatile uint64_t csr_branchResteerCycles = 1;
-volatile uint64_t csr_defetchLatencyCycles = 1;
-volatile uint64_t csr_refetchLatencyCycles = 1;
-volatile uint64_t csr_fetchBubblesInsts = 1;
-volatile uint64_t csr_renamedInsts = 1;
-volatile uint64_t csr_squashCycles = 1;
-volatile uint64_t csr_iewExecStallCycle = 1;
-volatile uint64_t csr_iewAnyLoadStallCycles = 1;
-volatile uint64_t csr_iewStoresStallCycles = 1;
-volatile uint64_t csr_branches = 1;
-volatile uint64_t csr_vctorVsetvli = 1;
-volatile uint64_t csr_vectorVsetvl = 1;
-volatile uint64_t csr_vectorVsetivli = 1;
-volatile uint64_t csr_branchMispredicts = 1;
-volatile uint64_t csr_vectorUnitStrideLoad = 1;
-volatile uint64_t csr_vectorUnitStrideStore = 1;
-volatile uint64_t csr_vectorStrideLoad = 1;
-volatile uint64_t csr_vectorStrideStore = 1;
-volatile uint64_t csr_vectorIndexLoad = 1;
-volatile uint64_t csr_vectorIndexStore = 1;
-volatile uint64_t csr_vectorSegmentLoad = 1;
-volatile uint64_t csr_vectorSegmentStore = 1;
-volatile uint64_t csr_vectorWholeRegisterLoad = 1;
-volatile uint64_t csr_vectorWholeRegisterStore = 1;
-volatile uint64_t csr_vectorFloat = 1;
-volatile uint64_t csr_vectorInt = 1;
-volatile uint64_t csr_floating = 1;
-volatile uint64_t csr_scalarLoads = 1;
-volatile uint64_t csr_scalarStores = 1;
+static tma_data_t perf_info[CORE_MAX] __attribute__((__section__(".pfdata.output")));
 
 void enableCount() {
     write_csr(mcounteren, -1); // Enable supervisor use of all perf counters
     write_csr(scounteren, -1); // Enable user use of all perf counters
 }
 
+
 static inline void startCount()
 {
-    csr_opsCommitted             = read_csr_safe(instret);
-    csr_defetchLatencyCycles     = read_csr_safe(hpmcounter6);
-    csr_refetchLatencyCycles     = read_csr_safe(hpmcounter7);
-    csr_fetchBubblesInsts        = read_csr_safe(hpmcounter8);
-    csr_renamedInsts             = read_csr_safe(hpmcounter9);
-    csr_squashCycles             = read_csr_safe(hpmcounter10);
-    csr_iewExecStallCycle        = read_csr_safe(hpmcounter11);
-    csr_iewAnyLoadStallCycles    = read_csr_safe(hpmcounter12);
-    csr_iewStoresStallCycles     = read_csr_safe(hpmcounter13);
-    csr_branchMispredicts        = read_csr_safe(hpmcounter18);
-    csr_machineClearCycles       = read_csr_safe(hpmcounter3);
-    csr_cycle                    = read_csr_safe(cycle);
+    int core_id = read_csr(mhartid);
+    perf_info[core_id].instret                  = read_csr_safe(instret);
+    perf_info[core_id].machineClears            = read_csr_safe(hpmcounter3);
+    perf_info[core_id].iCacheStallCycles        = read_csr_safe(hpmcounter4);
+    perf_info[core_id].branchResteerCycles      = read_csr_safe(hpmcounter5);
+    perf_info[core_id].defetchLatencyCycles     = read_csr_safe(hpmcounter6);
+    perf_info[core_id].refetchLatencyCycles     = read_csr_safe(hpmcounter7);
+    perf_info[core_id].fetchBubbles             = read_csr_safe(hpmcounter8);
+    perf_info[core_id].renamedInsts             = read_csr_safe(hpmcounter9);
+    perf_info[core_id].squashCycles             = read_csr_safe(hpmcounter10);
+    perf_info[core_id].exeStallCycles           = read_csr_safe(hpmcounter11);
+    perf_info[core_id].memStallsAnyLoad         = read_csr_safe(hpmcounter12);
+    perf_info[core_id].memStallsStores          = read_csr_safe(hpmcounter13);
+    perf_info[core_id].branches                 = read_csr_safe(hpmcounter14);
+    perf_info[core_id].vectorVsetvli            = read_csr_safe(hpmcounter15);
+    perf_info[core_id].vectorVsetvl             = read_csr_safe(hpmcounter16);
+    perf_info[core_id].vectorVsetivli           = read_csr_safe(hpmcounter17);
+    perf_info[core_id].brMispredRetired         = read_csr_safe(hpmcounter18);
+    perf_info[core_id].vectorUnitStrideLoad     = read_csr_safe(hpmcounter19);
+    perf_info[core_id].vectorUnitStrideStore    = read_csr_safe(hpmcounter20);
+    perf_info[core_id].vectorStirdeLoad         = read_csr_safe(hpmcounter21);
+    perf_info[core_id].vectorStrideStore        = read_csr_safe(hpmcounter22);
+    perf_info[core_id].vectorIndexLoad          = read_csr_safe(hpmcounter23);
+    perf_info[core_id].vectorIndexStore         = read_csr_safe(hpmcounter24);
+    perf_info[core_id].vectorSegmentLoad        = read_csr_safe(hpmcounter25);
+    perf_info[core_id].vectorSegmentStore       = read_csr_safe(hpmcounter26);
+    perf_info[core_id].vectorWholeRegisterLoad  = read_csr_safe(hpmcounter27);
+    perf_info[core_id].vectorWholeRegisterStore = read_csr_safe(hpmcounter28);
+    perf_info[core_id].vectorFloat              = read_csr_safe(hpmcounter29);
+    perf_info[core_id].vectorInt                = read_csr_safe(hpmcounter30);
+    perf_info[core_id].cycles                   = read_csr_safe(cycle);
 
 }
 
 static inline void stopCount()
 {
-    csr_cycle                    = read_csr_safe(cycle)        - csr_cycle;
-    csr_opsCommitted             = read_csr_safe(instret)      - csr_opsCommitted;
-    csr_machineClearCycles       = read_csr_safe(hpmcounter3)  - csr_machineClearCycles;
-    csr_defetchLatencyCycles     = read_csr_safe(hpmcounter6)  - csr_defetchLatencyCycles;
-    csr_refetchLatencyCycles     = read_csr_safe(hpmcounter7)  - csr_refetchLatencyCycles;
-    csr_fetchBubblesInsts        = read_csr_safe(hpmcounter8)  - csr_fetchBubblesInsts;
-    csr_renamedInsts             = read_csr_safe(hpmcounter9)  - csr_renamedInsts;
-    csr_squashCycles             = read_csr_safe(hpmcounter10) - csr_squashCycles;
-    csr_iewExecStallCycle        = read_csr_safe(hpmcounter11) - csr_iewExecStallCycle;
-    csr_iewAnyLoadStallCycles    = read_csr_safe(hpmcounter12) - csr_iewAnyLoadStallCycles;
-    csr_iewStoresStallCycles     = read_csr_safe(hpmcounter13) - csr_iewStoresStallCycles;
-    csr_branchMispredicts        = read_csr_safe(hpmcounter18) - csr_branchMispredicts;
+    int core_id = read_csr(mhartid);
+    perf_info[core_id].cycles                   = read_csr_safe(cycle)         - perf_info[core_id].cycles                  ;
+    perf_info[core_id].instret                  = read_csr_safe(instret)       - perf_info[core_id].instret                 ;
+    perf_info[core_id].machineClears            = read_csr_safe(hpmcounter3)   - perf_info[core_id].machineClears           ;
+    perf_info[core_id].iCacheStallCycles        = read_csr_safe(hpmcounter4)   - perf_info[core_id].iCacheStallCycles       ;
+    perf_info[core_id].branchResteerCycles      = read_csr_safe(hpmcounter5)   - perf_info[core_id].branchResteerCycles     ;
+    perf_info[core_id].defetchLatencyCycles     = read_csr_safe(hpmcounter6)   - perf_info[core_id].defetchLatencyCycles    ;
+    perf_info[core_id].refetchLatencyCycles     = read_csr_safe(hpmcounter7)   - perf_info[core_id].refetchLatencyCycles    ;
+    perf_info[core_id].fetchBubbles             = read_csr_safe(hpmcounter8)   - perf_info[core_id].fetchBubbles            ;
+    perf_info[core_id].renamedInsts             = read_csr_safe(hpmcounter9)   - perf_info[core_id].renamedInsts            ;
+    perf_info[core_id].squashCycles             = read_csr_safe(hpmcounter10)  - perf_info[core_id].squashCycles            ;
+    perf_info[core_id].exeStallCycles           = read_csr_safe(hpmcounter11)  - perf_info[core_id].exeStallCycles          ;
+    perf_info[core_id].memStallsAnyLoad         = read_csr_safe(hpmcounter12)  - perf_info[core_id].memStallsAnyLoad        ;
+    perf_info[core_id].memStallsStores          = read_csr_safe(hpmcounter13)  - perf_info[core_id].memStallsStores         ;
+    perf_info[core_id].branches                 = read_csr_safe(hpmcounter14)  - perf_info[core_id].branches                ;
+    perf_info[core_id].vectorVsetvli            = read_csr_safe(hpmcounter15)  - perf_info[core_id].vectorVsetvli           ;
+    perf_info[core_id].vectorVsetvl             = read_csr_safe(hpmcounter16)  - perf_info[core_id].vectorVsetvl            ;
+    perf_info[core_id].vectorVsetivli           = read_csr_safe(hpmcounter17)  - perf_info[core_id].vectorVsetivli          ;
+    perf_info[core_id].brMispredRetired         = read_csr_safe(hpmcounter18)  - perf_info[core_id].brMispredRetired        ;
+    perf_info[core_id].vectorUnitStrideLoad     = read_csr_safe(hpmcounter19)  - perf_info[core_id].vectorUnitStrideLoad    ;
+    perf_info[core_id].vectorUnitStrideStore    = read_csr_safe(hpmcounter20)  - perf_info[core_id].vectorUnitStrideStore   ;
+    perf_info[core_id].vectorStirdeLoad         = read_csr_safe(hpmcounter21)  - perf_info[core_id].vectorStirdeLoad        ;
+    perf_info[core_id].vectorStrideStore        = read_csr_safe(hpmcounter22)  - perf_info[core_id].vectorStrideStore       ;
+    perf_info[core_id].vectorIndexLoad          = read_csr_safe(hpmcounter23)  - perf_info[core_id].vectorIndexLoad         ;
+    perf_info[core_id].vectorIndexStore         = read_csr_safe(hpmcounter24)  - perf_info[core_id].vectorIndexStore        ;
+    perf_info[core_id].vectorSegmentLoad        = read_csr_safe(hpmcounter25)  - perf_info[core_id].vectorSegmentLoad       ;
+    perf_info[core_id].vectorSegmentStore       = read_csr_safe(hpmcounter26)  - perf_info[core_id].vectorSegmentStore      ;
+    perf_info[core_id].vectorWholeRegisterLoad  = read_csr_safe(hpmcounter27)  - perf_info[core_id].vectorWholeRegisterLoad ;
+    perf_info[core_id].vectorWholeRegisterStore = read_csr_safe(hpmcounter28)  - perf_info[core_id].vectorWholeRegisterStore;
+    perf_info[core_id].vectorFloat              = read_csr_safe(hpmcounter29)  - perf_info[core_id].vectorFloat             ;
+    perf_info[core_id].vectorInt                = read_csr_safe(hpmcounter30)  - perf_info[core_id].vectorInt               ;
+    
 
 }
 
-static inline void printfCount()
-{
-    printf("Perf: %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n",
-            csr_cycle                   ,
-            csr_opsCommitted            ,
-            csr_machineClearCycles      ,
-            csr_defetchLatencyCycles    ,
-            csr_refetchLatencyCycles    ,
-            csr_fetchBubblesInsts       ,
-            csr_renamedInsts            ,
-            csr_squashCycles            ,
-            csr_iewExecStallCycle       ,
-            csr_iewAnyLoadStallCycles   ,
-            csr_iewStoresStallCycles    ,
-            csr_branchMispredicts      
-            );
-}
 
 #define SET_PERFCNT(mhpmcnt, eventid, enventclass) \
   write_csr(mhpmcounter ## mhpmcnt, 0); \
@@ -197,69 +192,38 @@ static inline int insnInfoCntSet(){
   return 0;
 }
 
+static instuction_data_t insn_info[CORE_MAX] __attribute__((__section__(".pfdata.output")));
+
 static inline int insnInfoCntGet(){
-  long instret, cycles;
-  long intTotal, intLoad, intStore, intAmo, intSystem, intFence, intFencei, intBranch;
-  long intJal, intJalr, intAlu, intMul, intDiv;
-  long fpTotal, fpLoad, fpStore, fpFpu, fpDiv;
-  long rvvTotal, rvvVset, rvvLoad, rvvStore, rvvInt, rvvFloat;
+  int core_id = read_csr(mhartid);
 
-  cycles    = read_csr(mcycle);
-  instret   = read_csr(minstret);
+  insn_info[core_id].cycles    = read_csr(mcycle);
+  insn_info[core_id].instret   = read_csr(minstret);
 
-  intTotal  = GET_PERCNT(3);
-  intLoad   = GET_PERCNT(4);
-  intStore  = GET_PERCNT(5);
-  intAmo    = GET_PERCNT(6);
-  intSystem = GET_PERCNT(7);
-  intFence  = GET_PERCNT(8);
-  intFencei = GET_PERCNT(9);
-  intBranch = GET_PERCNT(10);
-  intJal    = GET_PERCNT(11);
-  intJalr   = GET_PERCNT(12);
-  intAlu    = GET_PERCNT(13);
-  intMul    = GET_PERCNT(14);
-  intDiv    = GET_PERCNT(15);
-  fpTotal   = GET_PERCNT(16);
-  fpLoad    = GET_PERCNT(17);
-  fpStore   = GET_PERCNT(18);
-  fpFpu     = GET_PERCNT(19);
-  fpDiv     = GET_PERCNT(20);
-  rvvTotal  = GET_PERCNT(21);
-  rvvVset   = GET_PERCNT(22);
-  rvvLoad   = GET_PERCNT(23);
-  rvvStore  = GET_PERCNT(24);
-  rvvInt    = GET_PERCNT(25);
-  rvvFloat  = GET_PERCNT(26);
-
-
-  printf("instret:%ld\n", (long)(instret));
-  printf("cycles:%ld\n",  (long)(cycles));
-
-  printf("intTotal:%ld\n",  intTotal);
-  printf("intLoad:%ld\n",   intLoad);
-  printf("intStore:%ld\n",  intStore);
-  printf("intAmo:%ld\n",    intAmo);
-  printf("intSystem:%ld\n", intSystem);
-  printf("intFence:%ld\n",  intFence);
-  printf("intFencei:%ld\n", intFencei);
-  printf("intBranch:%ld\n", intBranch);
-  printf("intJal:%ld\n",    intJal);
-  printf("intJalr:%ld\n",   intJalr);
-  printf("intAlu:%ld\n",    intAlu);
-  printf("intMul:%ld\n",    intMul);
-  printf("intDiv:%ld\n",    intDiv);
-  printf("fpTotal:%ld\n",   fpTotal);
-  printf("fpLoad:%ld\n",    fpLoad);
-  printf("fpStore:%ld\n",   fpStore);
-  printf("fpFpu:%ld\n",     fpFpu);
-  printf("fpDiv:%ld\n",     fpDiv);
-  printf("rvvTotal:%ld\n",  rvvTotal);
-  printf("rvvVset:%ld\n",   rvvVset);
-  printf("rvvLoad:%ld\n",   rvvLoad);
-  printf("rvvStore:%ld\n",  rvvStore);
-  printf("rvvInt:%ld\n",    rvvInt);
-  printf("rvvFloat:%ld\n",  rvvFloat);
+  insn_info[core_id].intTotalRetired  = GET_PERCNT(3);
+  insn_info[core_id].intLoad   = GET_PERCNT(4);
+  insn_info[core_id].intStore  = GET_PERCNT(5);
+  insn_info[core_id].intAmo    = GET_PERCNT(6);
+  insn_info[core_id].intSystem = GET_PERCNT(7);
+  insn_info[core_id].intFence  = GET_PERCNT(8);
+  insn_info[core_id].intFencei = GET_PERCNT(9);
+  insn_info[core_id].branchRetired = GET_PERCNT(10);
+  insn_info[core_id].intJal    = GET_PERCNT(11);
+  insn_info[core_id].intJalr   = GET_PERCNT(12);
+  insn_info[core_id].intAlu    = GET_PERCNT(13);
+  insn_info[core_id].intMul    = GET_PERCNT(14);
+  insn_info[core_id].intDividerRetired    = GET_PERCNT(15);
+  insn_info[core_id].fpTotalRetired    = GET_PERCNT(16);
+  insn_info[core_id].fpLoad    = GET_PERCNT(17);
+  insn_info[core_id].fpStore   = GET_PERCNT(18);
+  insn_info[core_id].fpFpu     = GET_PERCNT(19);
+  insn_info[core_id].fpDividerRetired     = GET_PERCNT(20);
+  insn_info[core_id].rvvTotalRetired  = GET_PERCNT(21);
+  insn_info[core_id].rvvVset   = GET_PERCNT(22);
+  insn_info[core_id].rvvLoadRetired   = GET_PERCNT(23);
+  insn_info[core_id].rvvStoreRetired  = GET_PERCNT(24);
+  insn_info[core_id].rvvInt    = GET_PERCNT(25);
+  insn_info[core_id].rvvFloat  = GET_PERCNT(26);
 
   return 0;
 }
@@ -268,10 +232,6 @@ static inline int insnInfoCntGet(){
 static inline int topDownCntSet(){
   write_csr(scounteren, -1);
   write_csr(mcounteren, -1);
-
-  SET_PERFCNT( 3,  8, 0); // slots issued
-  SET_PERFCNT( 4,  9, 0); // fetch bubbles
-  SET_PERFCNT( 5, 10, 0); // branch instruction retired
 
   SET_PERFCNT( 6,  8, 1); // bad resteers
   SET_PERFCNT( 7,  9, 1); // recovery bubbles
@@ -282,26 +242,29 @@ static inline int topDownCntSet(){
   SET_PERFCNT(12, 14, 1); // i-TLB stall
   SET_PERFCNT(13, 15, 1); // mem stall on any load
   SET_PERFCNT(14, 16, 1); // mem stall on any store
+  SET_PERFCNT(15, 17, 1); // mem stall on L1 miss
 
-  SET_PERFCNT(15, 16, 2); // Mem Unit valids
-  SET_PERFCNT(16, 17, 2); // Jmp Unit valids
-  SET_PERFCNT(17, 18, 2); // ALU Unit valids
-  SET_PERFCNT(18, 19, 2); // FPU EXE Unit valids
-  SET_PERFCNT(19, 20, 2); // Vector EXE Units valids
-  SET_PERFCNT(20, 21, 2); // Vector VMX Units valids
-  SET_PERFCNT(21, 22, 2); // divider busy cycles
-  SET_PERFCNT(22, 11, 2); // execution stalls (few = 1)
+  SET_PERFCNT(16, 18, 2); // ALU Unit valids
+  SET_PERFCNT(17, 19, 2); // FPU EXE Unit valids
+  SET_PERFCNT(18, 20, 2); // Vector EXE Units valids
+  SET_PERFCNT(19, 21, 2); // Matrix EXE Units valids
+  SET_PERFCNT(20, 22, 2); // divider busy cycles
+  SET_PERFCNT(21, 11, 2); // execution stalls (few = 1)
 
-  SET_PERFCNT(23, 23, 1); // rob cycles
-  SET_PERFCNT(24, 17, 1); // mem stall on L1 miss
+  SET_PERFCNT(22, 20, 5); // retired int div
+  SET_PERFCNT(23, 21, 5); // retired float  total
+  SET_PERFCNT(24, 25, 5); // retired float  div
+  SET_PERFCNT(25, 26, 5); // retired vector total
+  SET_PERFCNT(26, 28, 5); // retired vector load
+  SET_PERFCNT(27, 29, 5); // retired vector store
+  SET_PERFCNT(28, 32, 5); // retired matrix total
+  SET_PERFCNT(29, 33, 5); // retired matrix set
+  SET_PERFCNT(30, 34, 5); // retired matrix load
+  SET_PERFCNT(31, 35, 5); // retired matrix store
 
-  SET_PERFCNT(25, 21, 5); // retired float total
-  SET_PERFCNT(26, 25, 5); // retired float div
-  SET_PERFCNT(27, 26, 5); // retired vector total
-  SET_PERFCNT(28, 27, 5); // retired vector vset
-  SET_PERFCNT(29, 28, 5); // retired vector load
-  SET_PERFCNT(30, 29, 5); // retired vector store
-  SET_PERFCNT(31, 20, 5); // retired int div
+  SET_PERFCNT( 5, 10, 0); // branch instruction retired
+  SET_PERFCNT( 3,  8, 0); // slots issued
+  SET_PERFCNT( 4,  9, 0); // fetch bubbles
 
   write_csr(minstret, 0);
   write_csr(mcycle, 0);
@@ -309,86 +272,43 @@ static inline int topDownCntSet(){
   return 0;
 }
 
+
+
 static inline int topDownCntGet(){
-  long instret, cycles;
-  long slotsIss, fetchBubbles, branchCnt;
-  long badResteers, recovery, unknownBranch, branchMiss, machineClear;
-  long iCacheStall, iTLBStall, memLoadStall, memStoreStall;
-  long memUtil, jmpUtil, aluUtil, fpuUtil, vecUtil, vmxUtil, exeStall;
-  long robStall, memStallL1Miss, divBusyCycles;
-  long fpTotal, fpDiv, rvvTotal, rvvVset, rvvLoad, rvvStore, intDiv, intTotal;
+  int core_id = read_csr(mhartid);
 
-  instret        = read_csr(minstret);
-  cycles         = read_csr(mcycle);
-  slotsIss       = GET_PERCNT(3);
-  fetchBubbles   = GET_PERCNT(4);
-  branchCnt      = GET_PERCNT(5);
-  badResteers    = GET_PERCNT(6);
-  recovery       = GET_PERCNT(7);    
-  unknownBranch  = GET_PERCNT(8);
-  branchMiss     = GET_PERCNT(9);
-  machineClear   = GET_PERCNT(10);
-  iCacheStall    = GET_PERCNT(11);
-  iTLBStall      = GET_PERCNT(12);
-  memLoadStall   = GET_PERCNT(13);
-  memStoreStall  = GET_PERCNT(14);
-  memUtil        = GET_PERCNT(15);
-  jmpUtil        = GET_PERCNT(16);
-  aluUtil        = GET_PERCNT(17);
-  fpuUtil        = GET_PERCNT(18);
-  vecUtil        = GET_PERCNT(19);
-  vmxUtil        = GET_PERCNT(20);
-  divBusyCycles  = GET_PERCNT(21);
-  exeStall       = GET_PERCNT(22);
-  robStall       = GET_PERCNT(23);
-  memStallL1Miss = GET_PERCNT(24);
-  fpTotal        = GET_PERCNT(25);
-  fpDiv          = GET_PERCNT(26);
-  rvvTotal       = GET_PERCNT(27);
-  rvvVset        = GET_PERCNT(28);
-  rvvLoad        = GET_PERCNT(29);
-  rvvStore       = GET_PERCNT(30);
-  intDiv         = GET_PERCNT(31);
-  intTotal       = instret - fpTotal - rvvTotal;
-
-  printf("instret:%ld\n", (long)(instret));
-  printf("cycles:%ld\n",  (long)(cycles));
-
-  printf("slotsIssed:%ld\n",           slotsIss);
-  printf("fetchBubbles:%ld\n",         fetchBubbles);
-  printf("branchRetired:%ld\n",        branchCnt);
-  printf("badResteers:%ld\n",          badResteers);
-  printf("recoveryCycles:%ld\n",       recovery);
-  printf("unknowBanchCycles:%ld\n",    unknownBranch);
-  printf("brMispredRetired:%ld\n",     branchMiss);
-  printf("machineClears:%ld\n",        machineClear);
-  printf("iCacheStallCycles:%ld\n",    iCacheStall);
-  printf("iTLBStallCycles:%ld\n",      iTLBStall);
-  printf("memStallsAnyLoad:%ld\n",     memLoadStall);
-  printf("memStallsStores:%ld\n",      memStoreStall);
-  printf("memUnitUtilization:%ld\n",   memUtil);
-  printf("jmpUnitUtilization:%ld\n",   jmpUtil);
-  printf("aluUnitUtilization:%ld\n",   aluUtil);
-  printf("fpuUnitUtilization:%ld\n",   fpuUtil);
-  printf("vecUnitUtilization:%ld\n",   vecUtil);
-  printf("vmxUnitUtilization:%ld\n",   vmxUtil);
-  printf("divBusyCycles:%ld\n",        divBusyCycles);
-  printf("exeStallCycles:%ld\n",       exeStall);
-  printf("robStallCycles:%ld\n",       robStall);
-  printf("memStallsL1Miss:%ld\n",      memStallL1Miss);
-
-  printf("fpTotalRetired:%ld\n",       fpTotal);
-  printf("fpDividerRetired:%ld\n",     fpDiv);
-  printf("rvvTotalRetired:%ld\n",      rvvTotal);
-  printf("rvvVsetRetired:%ld\n",       rvvVset);
-  printf("rvvLoadRetired:%ld\n",       rvvLoad);
-  printf("rvvStoreRetired:%ld\n",      rvvStore);
-  printf("intDividerRetired:%ld\n",    intDiv);
-  printf("intTotalRetired:%ld\n",      intTotal);
-
-  printf("memLatency:%d\n",            0);
-  printf("memStallsL2Miss:%d\n",       0);
-  printf("memStallsL3Miss:%d\n",       0);
+  perf_info[core_id].instret        = read_csr(minstret);
+  perf_info[core_id].cycles         = read_csr(mcycle);
+  perf_info[core_id].slotsIssed           = GET_PERCNT(3);
+  perf_info[core_id].fetchBubbles   = GET_PERCNT(4);
+  perf_info[core_id].branchRetired      = GET_PERCNT(5);
+  perf_info[core_id].badResteers    = GET_PERCNT(6);
+  perf_info[core_id].recoveryCycles       = GET_PERCNT(7);    
+  perf_info[core_id].unknowBanchCycles    = GET_PERCNT(8);
+  perf_info[core_id].brMispredRetired     = GET_PERCNT(9);
+  perf_info[core_id].machineClears        = GET_PERCNT(10);
+  perf_info[core_id].iCacheStallCycles    = GET_PERCNT(11);
+  perf_info[core_id].iTLBStallCycles      = GET_PERCNT(12);
+  perf_info[core_id].memStallsAnyLoad     = GET_PERCNT(13);
+  perf_info[core_id].memStallsStores      = GET_PERCNT(14);
+  perf_info[core_id].memStallsL1Miss = GET_PERCNT(15);
+  perf_info[core_id].aluUnitUtilization        = GET_PERCNT(16);
+  perf_info[core_id].fpuUnitUtilization        = GET_PERCNT(17);
+  perf_info[core_id].vecUnitUtilization        = GET_PERCNT(18);
+  perf_info[core_id].matUnitUtilization        = GET_PERCNT(19);
+  perf_info[core_id].divBusyCycles  = GET_PERCNT(20);
+  perf_info[core_id].exeStallCycles       = GET_PERCNT(21);
+  perf_info[core_id].intDividerRetired         = GET_PERCNT(22);
+  perf_info[core_id].fpTotalRetired         = GET_PERCNT(23);
+  perf_info[core_id].fpDividerRetired          = GET_PERCNT(24);
+  perf_info[core_id].rvvTotalRetired       = GET_PERCNT(25);
+  perf_info[core_id].rvvLoadRetired        = GET_PERCNT(26);
+  perf_info[core_id].rvvStoreRetired       = GET_PERCNT(27);
+  perf_info[core_id].rvmTotalRetired       = GET_PERCNT(28);
+  perf_info[core_id].rvmMsetRetired        = GET_PERCNT(29);
+  perf_info[core_id].rvmLoadRetired        = GET_PERCNT(30);
+  perf_info[core_id].rvmStoreRetired       = GET_PERCNT(31);
+  perf_info[core_id].intTotalRetired       = perf_info[core_id].instret - perf_info[core_id].fpTotalRetired  - perf_info[core_id].rvvTotalRetired - perf_info[core_id].rvmTotalRetired;
 
   return 0;
 }

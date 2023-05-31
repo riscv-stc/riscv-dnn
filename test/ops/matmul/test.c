@@ -20,8 +20,6 @@ int main(int argc, char **argv)
     const int k = K;
     const int n = N;
 
-    //enableCount();
-
     if (DEBUG_PRINT) {
         printf("In Shape:\n\t(m, k, n) = (%d, %d, %d)\n",
                     m, k, n);
@@ -31,11 +29,13 @@ int main(int argc, char **argv)
     tensor_new_2d(src2Mat, k, n, sizeof(float16_t), src2Data);
     tensor_new_2d(dstMat, m, n, sizeof(float16_t), &dstData);
 
+    PERF_BEGIN();
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < NLOOPS; i++) {
         matmul(&dstMat, &src1Mat, &src2Mat);
     }
 
+    PERF_END();
     
     printf("End\n");
 

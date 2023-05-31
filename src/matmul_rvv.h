@@ -7,24 +7,20 @@
 
 //#define FP16_ACC16 1
 
-static inline int matmul(Tensor *dst, Tensor *src1, Tensor *src2)
+static inline int matmul(void *dst, void *src1, void *src2, int m , int k, int n)
 {
-    int h1 = src1->h;
-    int w1 = src1->w;
+    int h1 = m;
+    int w1 = k;
 
-    int h2 = src2->h;
-    int w2 = src2->w;
+    int h2 = k;
+    int w2 = n;
 
-    assert(w1 == h2);
+    int hout = m;
+    int wout = n;
 
-    int hout = dst->h;
-    int wout = dst->w;
-
-    assert(hout == h1 && wout == w2);
-
-    float16_t *psrc1 = (float16_t *)src1->data;
-    float16_t *psrc2 = (float16_t *)src2->data;
-    float16_t *pdst = (float16_t *)dst->data;
+    float16_t *psrc1 = (float16_t *)src1;
+    float16_t *psrc2 = (float16_t *)src2;
+    float16_t *pdst = (float16_t *)dst;
 
     int vl;
     for(int i = 0; i < h1; i++) {

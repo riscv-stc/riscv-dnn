@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import sys
+# from tkinter.ttk import _Padding
 import numpy as np
 import pandas as pd
 
@@ -8,24 +9,25 @@ import tensorflow as tf
 
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
-from perf import gem5_get_perf_data, vcs_get_perf_data, generate_perf_report
-from tma import *
+from work import do_test
 
 
 title = "Diffent Optimization levels for conv operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
-
-cols = ['Workload', 'Cycles', 'IPC', 'Front', 'BS', 'MEM', 'CORE', 'Retire']
+# opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+# opt_levels = {"loop=1":"-O2 -D__RVM__", "loop=2":"-O2 -D__RVM__ -DNLOOPS=2", "im2col":"-O2 -D__IM2COL__"}
+opt_levels = {"im2col4":"-O2 -DNLOOPS=4 -D__RVM__", "im2col8":"-O2 -DNLOOPS=8 -D__RVM__"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
 print("run on %s" % simulator)
 
+if simulator == 'spike':
+    opt_levels = {"RVM":"-O2 -D__RVM__"}
 
-def conv(hin, win, cin, cout, kh, kw, sh=1, sw=1, dh=1, dw=1, pt=0, pb=0, pl=0, pr=0):
+def conv(num, hin, win, cin, cout, kh, kw, sh=1, sw=1, dh=1, dw=1, pt=0, pb=0, pl=0, pr=0):
     shape_input = [1, hin, win, cin]
     shape_weight = [kh, kw, cin, cout]
     vs1 = np.random.random(shape_input).astype('float16') * 2 - 1
@@ -34,9 +36,9 @@ def conv(hin, win, cin, cout, kh, kw, sh=1, sw=1, dh=1, dw=1, pt=0, pb=0, pl=0, 
     vd = tf.nn.conv2d(vs1, vs2, [1, sh, sw, 1], tf_pad, data_format='NHWC', dilations=[1, dh, dw, 1])
     vd = vd.numpy()
 
-    vs1.tofile("src.bin")
-    vs2.tofile("weight.bin")
-    vd.tofile('golden.bin')
+    vs1.tofile(f"build/{num}/src.bin")
+    vs2.tofile(f"build/{num}/weight.bin")
+    vd.tofile(f'build/{num}/golden.bin')
 
     return vd
 
@@ -64,9 +66,9 @@ def test(num, params, defs):
     else:
         pt, pb, pl, pr = 0, 0, 0, 0
 
-    os.system(f"make clean")
+    os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
-    golden = conv(h, w, cin, cout, kh, kw, stride_h, stride_w, dh, dw, pt, pb, pl, pr)
+    golden = conv(num, h, w, cin, cout, kh, kw, stride_h, stride_w, dh, dw, pt, pb, pl, pr)
     defines = (
         f'-DHIN={h} -DWIN={w} -DCIN={cin} -DCOUT={cout} -DKH={kh} -DKW={kw} '
               f'-DSTRIDE_H={stride_h} -DSTRIDE_W={stride_w} '
@@ -74,9 +76,9 @@ def test(num, params, defs):
               f'-DPAD_TOP={pt} -DPAD_BOTTOM={pb} -DPAD_LEFT={pl} -DPAD_RIGHT={pr}'
     )
 
-    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator}")
+    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
-    result = from_txt( f'{simulator}.sig', golden, 0 )
+    result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)
     check_result = check_to_txt( golden, result, f'check/{num}.data', f'np.allclose( result, golden, rtol={1e-5*kh*kw*cin}, atol={1e-8*kh*kw*cin}, equal_nan=True)' )
     print(f"> {num}, check result: {check_result}")
@@ -89,47 +91,128 @@ if __name__ == "__main__":
     #                              sh=1, sw=1
     #                                      dh=1, dw=1
     #                                               pt=0, pb=0, pl=0, pr=0
+    os.system("rm *.o")
     params = (
-        (5, 5, 1, 256, 3, 3),
-        (5,    5, 3, 300, 3, 3),
-        (7, 7, 3, 3, 3, 3,         2, 2),
-        (9, 9, 3, 3, 3, 3,         2, 2,    2, 2),
-        (16, 16, 16, 16,           3, 3),
-        # (224, 224, 3, 64, 7, 7),
-        # (64, 64, 64, 32,           5, 5),
-        # (66, 66, 16, 130,          5, 5),
-        # (5, 5, 3, 300, 3, 3,       1, 1,    1, 1,   1, 1, 1, 1),
-        # (7, 7, 3, 3, 3, 3,         2, 2,    1, 1,   1, 0, 0, 1),
-        # (19, 19, 3, 3, 5, 5,       2, 2,    2, 2,   2, 2, 2, 2),
-        # (16, 16, 16, 130, 5, 5,    3, 2,    1, 1,   2, 1, 1, 1),
+        # # stage 0
+        # (224, 224, 3, 64, 7, 7,   2, 2,  1, 1,   3, 3, 3, 3),
+        # # stage 1
+        (56, 56, 64, 256, 1, 1,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (56, 56, 256, 512, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
+        # # stage 4
+        # (28, 28, 512, 1024, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (14, 14, 1024, 2048, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (8, 8, 8, 8, 3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (8, 8, 8, 8, 3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (8, 8, 8, 8, 3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (8, 8, 8, 8, 3, 3,   2, 2,  2, 2,   1, 1, 1, 1),
+        # (18, 18, 16, 16, 3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (16, 16, 16, 16, 3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (16, 16, 16, 16, 3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (16, 16, 16, 16, 3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+
+        # conv
+        # (18, 18, 16,  16,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 16,  64,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 16,  128, 3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 16,  16,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 16,  64,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 16,  128, 7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+
+        # (18, 18, 64,  16,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  64,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  128, 3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  16,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  64,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  128, 7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+
+        # (18, 18, 128,  16,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  64,  3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  128, 3, 3,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  16,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  64,  7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  128, 7, 7,   1, 1,  1, 1,   0, 0, 0, 0),
+        
+        # stride
+
+        # (18, 18, 64,   64,  3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (31, 31, 64,   64,  3, 3,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (38, 38, 64,   64,  3, 3,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 64,  128,  3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (31, 31, 64,  128,  3, 3,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (38, 38, 64,  128,  3, 3,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (21, 21, 64,   64,  7, 7,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (35, 35, 64,   64,  7, 7,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (42, 42, 64,   64,  7, 7,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (21, 21, 64,  128,  7, 7,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (35, 35, 64,  128,  7, 7,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (42, 42, 64,  128,  7, 7,   5, 5,  1, 1,   0, 0, 0, 0),
+
+        # (18, 18, 128,   64,  3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (31, 31, 128,   64,  3, 3,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (38, 38, 128,   64,  3, 3,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (18, 18, 128,  128,  3, 3,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (31, 31, 128,  128,  3, 3,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (38, 38, 128,  128,  3, 3,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (21, 21, 128,   64,  7, 7,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (35, 35, 128,   64,  7, 7,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (42, 42, 128,   64,  7, 7,   5, 5,  1, 1,   0, 0, 0, 0),
+        # (21, 21, 128,  128,  7, 7,   2, 2,  1, 1,   0, 0, 0, 0),
+        # (35, 35, 128,  128,  7, 7,   4, 4,  1, 1,   0, 0, 0, 0),
+        # (42, 42, 128,  128,  7, 7,   5, 5,  1, 1,   0, 0, 0, 0),
+
+        # dilation
+        # (12, 12, 64,   64,  3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (16, 16, 64,   64,  3, 3,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (18, 18, 64,   64,  3, 3,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (12, 12, 64,  128,  3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (16, 16, 64,  128,  3, 3,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (18, 18, 64,  128,  3, 3,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (20, 20, 64,   64,  7, 7,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (32, 32, 64,   64,  7, 7,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (38, 38, 64,   64,  7, 7,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (20, 20, 64,  128,  7, 7,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (32, 32, 64,  128,  7, 7,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (38, 38, 64,  128,  7, 7,   1, 1,  5, 5,   0, 0, 0, 0),
+
+        # (12, 12, 128,   64,  3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (16, 16, 128,   64,  3, 3,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (18, 18, 128,   64,  3, 3,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (12, 12, 128,  128,  3, 3,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (16, 16, 128,  128,  3, 3,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (18, 18, 128,  128,  3, 3,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (20, 20, 128,   64,  7, 7,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (32, 32, 128,   64,  7, 7,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (38, 38, 128,   64,  7, 7,   1, 1,  5, 5,   0, 0, 0, 0),
+        # (20, 20, 128,  128,  7, 7,   1, 1,  2, 2,   0, 0, 0, 0),
+        # (32, 32, 128,  128,  7, 7,   1, 1,  4, 4,   0, 0, 0, 0),
+        # (38, 38, 128,  128,  7, 7,   1, 1,  5, 5,   0, 0, 0, 0),
+        
+        # Padding
+        # (16, 16, 64,  64,  3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (14, 14, 64,  64,  3, 3,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (12, 12, 64,  64,  3, 3,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (16, 16, 64, 128,  3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (14, 14, 64, 128,  3, 3,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (12, 12, 64, 128,  3, 3,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (20, 20, 64,  64,  7, 7,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (18, 18, 64,  64,  7, 7,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (16, 16, 64,  64,  7, 7,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (20, 20, 64, 128,  7, 7,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (18, 18, 64, 128,  7, 7,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (16, 16, 64, 128,  7, 7,   1, 1,  1, 1,   3, 3, 3, 3),
+
+        # (16, 16, 128,  64,  3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (14, 14, 128,  64,  3, 3,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (12, 12, 128,  64,  3, 3,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (16, 16, 128, 128,  3, 3,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (14, 14, 128, 128,  3, 3,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (12, 12, 128, 128,  3, 3,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (20, 20, 128,  64,  7, 7,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (18, 18, 128,  64,  7, 7,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (16, 16, 128,  64,  7, 7,   1, 1,  1, 1,   3, 3, 3, 3),
+        # (20, 20, 128, 128,  7, 7,   1, 1,  1, 1,   1, 1, 1, 1),
+        # (18, 18, 128, 128,  7, 7,   1, 1,  1, 1,   2, 2, 2, 2),
+        # (16, 16, 128, 128,  7, 7,   1, 1,  1, 1,   3, 3, 3, 3),
     )
     
-    # perf optimization levels
-    for key,val in opt_levels.items():
-        defs = val
-        if simulator == 'vcs': # TODO: support gem5
-            defs += ' -DPERF '
-
-        output = pd.DataFrame(columns = cols)
-        for i in range(len(params)):
-            test(key+'-'+str(i), params[i], defs)
-            if simulator == 'gem5':
-                perf_data = gem5_get_perf_data('m5out')
-                perf_data["Workload"] = 'x'.join(map(str, params[i]))
-                perf_data = [perf_data[col] for col in cols]
-                output.loc[i] = perf_data
-            elif simulator == 'vcs':
-                perf_data = vcs_get_perf_data()
-                perf_data["Workload"] = 'x'.join(map(str, params[i]))
-                perf_data = [perf_data[col] for col in cols]
-                output.loc[i] = perf_data
-        if simulator != 'spike':
-            output = output.set_index('Workload')
-            os.makedirs('perf', exist_ok=True)
-            output.to_csv(f'perf/{key}.csv')
-
-    if simulator != 'spike':
-        generate_perf_report(title, [x for x in opt_levels.keys()])
-        print('> Perf report generated.')
-        # case_title = 'x'.join(map(str, params[i]))
-        # PlotMetrics(case_title)
+    do_test(params, opt_levels, test, title, simulator, simulator!='spike')

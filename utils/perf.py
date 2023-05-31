@@ -9,29 +9,36 @@ import base64
 import os
 import re
 from decimal import Decimal
-import math
+
+from inspect import getmembers
+from cffi import FFI
+
+from rich.console import Console
+console = Console()
 
 plt.rcParams["figure.dpi"] = 300
 plt.rcParams['font.size'] = 8 
 
 title = 'Diffent Optimization levels for add operator'
 setups = ['O0', 'O2', 'O3']
-metrics = ['Front', 'BS', 'MEM', 'CORE', 'Retire']
+metrics = ['Cycles', 'Front', 'BS', 'MEM', 'CORE', 'Retire']
 
 def generate_perf_report(title, setups, metrics=metrics):
-    fig, axes = plt.subplots(nrows=1, ncols=len(setups))
+    fig, axes = plt.subplots(nrows=1, ncols=len(setups), squeeze=False)
 
     # read original data
     dfs = [pd.read_csv(f"perf/{s}.csv") for s in setups]
     dfs = [df.set_index('Workload') for df in dfs]
 
+
     # TMA metrics plots
     for i in range(len(dfs)):
         df = dfs[i]
         df = df[[*metrics]]
-        df.plot(ax=axes[i], kind="barh", stacked=True, legend=False, title=setups[i])
+        console.log(df)
+        df.plot(ax=axes[0][i], kind="barh", stacked=True, legend=False, title=setups[i])
         if i != 0:
-            axes[i].get_yaxis().set_visible(False)
+            axes[0][i].get_yaxis().set_visible(False)
 
     plt.legend(bbox_to_anchor=(1.0, 1.0))
     fig.tight_layout()
@@ -103,40 +110,41 @@ def gem5_get_core_width(m5out):
             if "issueWidth" in dataline:
                 return int(dataline.split('=')[1][:-1])
 
-def gem5_get_perf_data(m5out):
-    EV = dict() 
-    METRICS = dict()
-    logpath = 'gem5.log'
-    with open(logpath, 'r') as f:
-        lines = f.readlines()
-        for line in lines:
-            if line.startswith('Perf:'):
-                data = line.split()
-                EV['csr_cycle'] = float(data[1])
-                EV['csr_opsCommitted'] = float(data[2])
-                EV['csr_machineClearCycles'] = float(data[3])
-                EV['csr_defetchLatencyCycles'] = float(data[4])
-                EV['csr_refetchLatencyCycles'] = float(data[5])
-                EV['csr_fetchBubblesInsts'] = float(data[6])
-                EV['csr_renamedInsts'] = float(data[7])
-                EV['csr_squashCycles'] = float(data[8])
-                EV['csr_iewExecStallCycle'] = float(data[9])
-                EV['csr_iewAnyLoadStallCycles'] = float(data[10])
-                EV['csr_iewStoresStallCycles'] = float(data[11])
-                EV['csr_branchMispredicts'] = float(data[12])
+def gem5_get_perf_data(datapath, ncores):
+    ffi = FFI()
 
-    CLKS = EV['csr_cycle']
-    PipelineWidth = gem5_get_core_width(m5out)
+    with open("../../../src/perf-data.h", "r") as f:
+        cdefs = f.read()
+        ffi.cdef(cdefs)
+        f.close()
+
+    perf_data = ffi.new("tma_data_t[]", 8)
+
+    with open(datapath, "rb") as f:
+        f.readinto(ffi.buffer(perf_data))
+
+    EVS = cdata_dict(ffi, perf_data)
+
+    CYCLES = []
+    for i in range(ncores):
+        CYCLES.append(EVS[i]['cycles'])
+
+    EV = EVS[0]
+
+    METRICS = dict()
+
+    CLKS = EV['cycles']
+    PipelineWidth = 2
     SLOTS = PipelineWidth * CLKS
-    IPC = EV['csr_opsCommitted'] / CLKS
-    MACHINECLEAR = PipelineWidth * EV['csr_machineClearCycles']
+    IPC = EV['instret'] / CLKS
+    MACHINECLEAR = PipelineWidth * EV['machineClears']
     METRICS['Cycles'] = CLKS
     METRICS['IPC'] = Decimal(IPC).quantize(Decimal("0.00"))
     #level 0
-    frontend_bound = EV['csr_fetchBubblesInsts'] / SLOTS * 100
-    retiring = EV['csr_opsCommitted'] / SLOTS * 100
-    bad_speculaton = (EV['csr_renamedInsts'] - EV['csr_opsCommitted'] + \
-                        EV['csr_squashCycles'] * PipelineWidth) / SLOTS * 100
+    frontend_bound = EV['fetchBubbles'] / SLOTS * 100
+    retiring = EV['instret'] / SLOTS * 100
+    bad_speculaton = (EV['renamedInsts'] - EV['instret'] + \
+                        EV['squashCycles'] * PipelineWidth) / SLOTS * 100
     backend_bound = 100 - (frontend_bound + bad_speculaton + retiring)
 
     METRICS['Front'] = Decimal(frontend_bound).quantize(Decimal("0.00")) # frontend_bound
@@ -145,17 +153,17 @@ def gem5_get_perf_data(m5out):
     METRICS['backend_bound'] = Decimal(backend_bound).quantize(Decimal("0.00"))
     
     #level 1
-    fetch_latency_bound = EV['csr_defetchLatencyCycles'] / CLKS * 100
-    decode_latency_bound = (EV['csr_refetchLatencyCycles'] - EV['csr_defetchLatencyCycles']) \
+    fetch_latency_bound = EV['defetchLatencyCycles'] / CLKS * 100
+    decode_latency_bound = (EV['refetchLatencyCycles'] - EV['defetchLatencyCycles']) \
                             / CLKS * 100
     fetch_bandwidth_bound = frontend_bound - (fetch_latency_bound + decode_latency_bound)
-    br_mispred_fraction = EV['csr_branchMispredicts'] / \
-                            (EV['csr_branchMispredicts'] + MACHINECLEAR)
+    br_mispred_fraction = EV['brMispredRetired'] / \
+                            (EV['brMispredRetired'] + MACHINECLEAR)
     branch_mispredicts = br_mispred_fraction * bad_speculaton
     machine_clears = bad_speculaton - branch_mispredicts
 
-    lsFraction = (EV['csr_iewAnyLoadStallCycles'] + EV['csr_iewStoresStallCycles']) / \
-                    EV['csr_iewExecStallCycle']
+    lsFraction = (EV['memStallsAnyLoad'] + EV['memStallsStores']) / \
+                    EV['exeStallCycles']
     memory_bound = backend_bound * lsFraction
     core_bound = backend_bound * (1 - lsFraction)
 
@@ -171,18 +179,38 @@ def gem5_get_perf_data(m5out):
     METRICS['MEM'] = Decimal(memory_bound).quantize(Decimal("0.00")) # memory_bound
     METRICS['CORE'] = Decimal(core_bound).quantize(Decimal("0.00")) # core_bound
 
-    return METRICS
+    return METRICS, CYCLES
 
-def vcs_get_perf_data():
-    EV = dict() 
+def cdata_dict(ffi, cd):
+    if isinstance(cd, ffi.CData):
+        try:
+            return ffi.string(cd)
+        except TypeError:
+            try:
+                return [cdata_dict(ffi, x) for x in cd]
+            except TypeError:
+                return {k: cdata_dict(ffi, v) for k, v in getmembers(cd)}
+    else:
+        return cd
+
+def vcs_get_perf_data(datapath, ncores):
+    ffi = FFI()
+
+    with open("../../../src/perf-data.h", "r") as f:
+        cdefs = f.read()
+        ffi.cdef(cdefs)
+        f.close()
+
+    perf_data = ffi.new("tma_data_t[]", 8)
+
+    with open(datapath, "rb") as f:
+        f.readinto(ffi.buffer(perf_data))
+
+    EVS = cdata_dict(ffi, perf_data)
+
+    EV = EVS[0]
+    
     METRICS = dict()
-    logpath = 'vcs.log'
-    with open(logpath, "r") as f:
-        lines = f.readlines()
-        for line in lines:
-          if re.search(r"\w:(-*)\d+$", line):
-            data = line.split(":")
-            EV[data[0]] = abs(int(data[1].rstrip()))
 
     PipelineWidth = 2
     CLKS = EV['cycles']
@@ -213,6 +241,12 @@ def vcs_get_perf_data():
     METRICS['CORE'] = Decimal(core_bound).quantize(Decimal("0.00")) # core_bound
     
     return METRICS
+
+def get_perf_data(datapath, simulator, ncores):
+    if simulator == 'vcs':
+        return vcs_get_perf_data(datapath, ncores)
+    elif simulator == 'gem5':
+        return gem5_get_perf_data(datapath, ncores)
 
 if __name__ == "__main__":
     generate_perf_report(title, setups)

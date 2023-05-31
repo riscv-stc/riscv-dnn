@@ -35,9 +35,13 @@ SECTIONS
   .data : { 
     *(.data) 
     *(.scdata.params)
-    . = ALIGN(0x1000);
+    . = ALIGN(0x10000000);
     begin_signature = .;
     *(.scdata.output)
+    . = ALIGN(0x10000000);
+    begin_perf_data = .;
+    *(.pfdata.output)
+    end_perf_data = .;
     end_signature = .;
     }
 

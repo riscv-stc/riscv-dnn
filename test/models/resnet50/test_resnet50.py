@@ -5,8 +5,8 @@ import os
 import sys
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt, get_sig_addr
-from perf import gem5_get_perf_data, vcs_get_perf_data, generate_perf_report
-from tma import *
+from work import do_test
+
 # Tensorflow imports
 import tensorflow.compat.v1 as tf
 # Tensorflow utility functions
@@ -21,8 +21,9 @@ from imagenet_preprocessing import (
 sys.path.append("../..") 
 from check import *
 
+title = "Single CORES for Resnet50 Net"
+opt_levels = {"loop4": "-O2 -D__RVM__ -DNLOOPS=4", "loop8": "-O2 -D__RVM__ -DNLOOPS=8"}
 
-defs = '-D__RVM__'
 
 pwd = os.path.dirname(os.path.realpath(__file__))
 model_path = os.path.join(pwd, "resnet-50_v2.pb")
@@ -33,6 +34,8 @@ begin_addr = 0
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
 
+if simulator == 'spike':
+    opt_levels = {"1": "-O2 -D__RVM__ -DNLOOPS=1 "}
 
 # preprocess one picture
 def preprocess(img_path):
@@ -49,7 +52,7 @@ def preprocess(img_path):
 # prepare input data
 def prepare_input(num):
     x_all = []
-    for i in range(num, num+1):
+    for i in range(num):
         # load jpg
         img_path = os.path.join(img_url, "ILSVRC2012_val_000000%02d.JPEG" % (i + 1))
         x = preprocess(img_path)
@@ -61,7 +64,16 @@ def prepare_input(num):
     return x
 
 
-def get_golden_check(num, layer, acc):
+def get_golden_check(num, layer, BATCH):
+    begin_addr = get_sig_addr(f"build/{num}/test.map", "begin_signature")
+    print("begin_signature: ", hex(begin_addr))
+
+    ## check
+    tf.disable_eager_execution()
+    # set number pictures to predict
+
+    x = prepare_input(BATCH)
+
     if 'dense' in layer:
         layername = layer.split('/')[2]
     elif 'softmax' in layer:
@@ -81,31 +93,52 @@ def get_golden_check(num, layer, acc):
         with tf.compat.v1.Session() as sess:
             softmax_tensor = sess.graph.get_tensor_by_name(layer0)
             predictions = sess.run(softmax_tensor, {"input_tensor:0": x})
-            sig_addr = get_sig_addr("test.map", layername+"_data")
+            sig_addr = get_sig_addr(f"build/{num}/test.map", layername+"_data")
             start_offset = sig_addr - begin_addr
             print(layername, "addr: ", hex(sig_addr), "offset: ", start_offset)
-            result = from_txt(f'{simulator}.sig', predictions, start_offset)
+            result = from_txt(f'build/{num}/{simulator}.sig', predictions, start_offset)
             os.makedirs('check', exist_ok=True)
             check_result = check_to_txt( predictions, result, f'check/{layername}.data', 'np.allclose( result, golden, rtol=1e-2, atol=1e-2, equal_nan=True)' )
             print(f"> {num}, check result: {check_result}")
             print(str(num)+"-"+layer, predictions.shape)
             
             
+def test(num, params, defs, ncores=8):
+    BATCH, *extras = params
+    extras = None
 
+    os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
+    os.system(f"make clean && make DEFS='{defs} -DBATCH={BATCH}' run SIM={simulator} NUM={num}  > build/{num}/test.log 2>&1")
+
+    # get_golden_check(num, "resnet_model/Relu", BATCH)
+    # # # get_golden_check(num,  "resnet_model/conv2d_1/Conv2D", BATCH)
+    # # # get_golden_check(num,  "resnet_model/Relu_1", BATCH)
+    # # # get_golden_check(num,  "resnet_model/Relu_4", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_9", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_21", BATCH)
+    # get_golden_check(num, "resnet_model/Relu_39", BATCH)
+    # # get_golden_check(num, "resnet_model/Relu_40", BATCH)
+    # # get_golden_check(num, "resnet_model/Relu_41", BATCH)
+    # # get_golden_check(num, "resnet_model/Relu_44", BATCH)
+    # # get_golden_check(num, "resnet_model/Relu_48", BATCH)
+    # get_golden_check(num, "resnet_model/Mean", BATCH)
+    # get_golden_check(num, "resnet_model/dense/MatMul", BATCH)
+    # get_golden_check(num, "softmax_tensor_fp16", BATCH)
 
 if __name__ == "__main__" :
-    ## compile
-    for pic_num in range(0, 65):
-        os.system(f"make clean && make run SIM={simulator} DEFS='{defs} -DN={pic_num}'")
-        # begin_addr = get_sig_addr("test.map", "begin_signature")
-        # print("begin_signature: ", hex(begin_addr))
-
-        # ## check
-        # tf.disable_eager_execution()
-        # # set number pictures to predict
-        # BATCH = 1
-        # x = prepare_input(pic_num)
-
+    ## run at first time
+    # os.system("rm *.o")
+    # os.system("python3 gen_weight_bin.py")
+    # os.system("python3 gen_input_bin-fp16.py")
+    # os.system("python3 gen_header.py")
+    # os.system("python3 gen_padding_input.py")
+    
+    # params:
+    #   BATCH
+    params = (
+        (1,),
+    )
+    do_test(params, opt_levels, test, title, simulator, simulator!='spike')
         # stage 1
         # get_golden_check(2,  "resnet_model/conv2d/Conv2D", 7*7*3)
         # get_golden_check(3,  "resnet_model/max_pooling2d/MaxPool", 3*3)

@@ -31,7 +31,7 @@ static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
     int wout = ss->wout;
     int cout = ss->cout;
 
-    int vlmax = VLENB * 4 / 2;
+    int vl;
 
     float16_t *psrc = (float16_t *)src->data;
     // padding the input data
@@ -39,8 +39,8 @@ static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
         float16_t *psrcPad = (float16_t *)srcPad->data;
         psrcPad += pad_t * (win + pad_l + pad_r) * cin + pad_l * cin;  
         for (int i = 0; i < hin; i++) {
-            for (int j = 0; j < win * cin; j += vlmax) {
-                unsigned vl = min(vlmax, win * cin - j);
+            for (int j = 0; j < win * cin; j += vl) {
+                vl = vsetvl_e16m4(win * cin - j);
                 vfloat16m4_t _data = vle16_v_f16m4(psrc, vl);
                 psrc += vl;
                 vse16_v_f16m4(psrcPad, _data, vl);
@@ -57,11 +57,11 @@ static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
     float16_t *pweight = (float16_t *)weight->data;
     float16_t *pdst = (float16_t *)dst->data;
 
-    
+    int vl_out;
     for (int i = 0; i < hout; i++) {
       for (int j = 0; j < wout; j++) { 
-        for (int k = 0; k < cout; k += vlmax) { // complete  vlmax one time
-          unsigned vl_out = min(vlmax, cout - k);
+        for (int k = 0; k < cout; k += vl_out) { // complete  vlmax one time
+          vl_out = vsetvl_e16m4(cout - k);
           int offset_dst = i * wout * cout + j * cout + k;
           vfloat32m8_t _sum = vfmv_v_f_f32m8(0.f, vl_out);
 

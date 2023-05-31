@@ -32,7 +32,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    relu(&dstMat, &srcMat, base);
+    for (int i = 0; i < NLOOPS; i++) {
+        relu(&dstMat, &srcMat, base);
+    }
 
     PERF_END();
     

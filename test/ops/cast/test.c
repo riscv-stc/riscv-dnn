@@ -30,7 +30,9 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    cast_f32_to_f16(&dstMat, &srcMat);
+    for (int i = 0; i < NLOOPS; i++) {
+        cast_f32_to_f16(&dstMat, &srcMat);
+    }
 
     PERF_END();
     
