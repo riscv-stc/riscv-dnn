@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import math
 
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
@@ -34,10 +35,11 @@ def matmul(num, m, k, n):
 def test(num, params, defs):
     m, k, n = params
 
+    out_size = hex(math.ceil((m * n)/8)*8)
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
     golden = matmul(num, m, k, n)
-    os.system(f"make DEFS='-DM={m} -DK={k} -DN={n} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make DEFS='-DM={m} -DK={k} -DN={n} {defs}' OUT_SIZE={out_size} run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)

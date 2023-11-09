@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import math
 
 sys.path.append("../../../utils") 
 from check import from_txt, check_to_txt
@@ -37,6 +38,10 @@ def test(num, params, defs):
     else:
         pt, pb, pl, pr = 0, 0, 0, 0
 
+    h_out = math.ceil(h + pt + pb)
+    w_out = math.ceil(w + pl + pr)
+    out_size = hex((math.ceil((h_out * w_out * cin)/8)) *8)
+
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
     golden = padding(num, h, w, cin, pt, pb, pl , pr)
@@ -45,7 +50,7 @@ def test(num, params, defs):
               f'-DPAD_TOP={pt} -DPAD_BOTTOM={pb} -DPAD_LEFT={pl} -DPAD_RIGHT={pr}'
     )
 
-    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make DEFS='{defines} {defs}' OUT_SIZE={out_size} run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)

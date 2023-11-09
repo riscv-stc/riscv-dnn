@@ -106,9 +106,9 @@ def get_golden_check(num, layer, BATCH):
 def test(num, params, defs, ncores=8):
     BATCH, *extras = params
     extras = None
-
+    out_size = 0x8000000
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
-    os.system(f"make clean && make DEFS='{defs} -DBATCH={BATCH}' run SIM={simulator} NUM={num}  > build/{num}/test.log 2>&1")
+    os.system(f"make clean && make DEFS='{defs} -DBATCH={BATCH}'  OUT_SIZE={out_size}  SIM={simulator} NUM={num}  > build/{num}/test.log 2>&1")
 
     # get_golden_check(num, "resnet_model/Relu", BATCH)
     # # # get_golden_check(num,  "resnet_model/conv2d_1/Conv2D", BATCH)

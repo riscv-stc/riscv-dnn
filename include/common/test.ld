@@ -38,7 +38,7 @@ SECTIONS
     . = ALIGN(0x8000000);
     begin_signature = .;
     *(.scdata.output)
-    . = ALIGN(0x8000000);
+    . = ALIGN(OUT_FTM_SIZE);
     begin_perf_data = .;
     *(.pfdata.output)
     end_perf_data = .;

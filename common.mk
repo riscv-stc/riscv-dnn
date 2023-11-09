@@ -8,6 +8,8 @@ src_dir = $(top_dir)/src
 includes = -I$(inc_dir)/env -I$(inc_dir)/common -I$(src_dir) -Ibuild/$(NUM)
 defines = $(DEFS)
 
+out_size = $(OUT_SIZE)
+
 # simulators
 # supported: spike gem5 vcs
 SIM ?= spike
@@ -28,6 +30,8 @@ SIMV ?= $(top_dir)/../chipyard/sims/vcs/simv-chipyard-StcBoomConfig-debug
 SIMV_ARGS := +fsdbfile=build/$(NUM)/test.fsdb
 SIMV_POST := 
 
+SIM_Link :=
+
 PK := pk
 
 ifeq (x$(SIM), xspike)
@@ -35,6 +39,7 @@ ifeq (x$(SIM), xspike)
 		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh --varch=vlen:128,elen:64,slen:128,mlen:1024 \
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	defines += -D__SPIKE__
+	SIM_Link := cp  -rf $(inc_dir)/common/test.ld  build/$(NUM)/test.ld ; sed -i 's/OUT_FTM_SIZE/${out_size}/g' build/$(NUM)/test.ld
 else ifeq (x$(SIM), xgem5)
 	SIM_CMD ?= $(GEM5)/build/RISCV/gem5.opt --outdir=build/$(NUM)/m5out --listener-mode=off $(GEM5_OPTS) \
 		$(GEM5)/configs/example/fs.py --signature=build/$(NUM)/gem5.sig \
@@ -51,6 +56,7 @@ else ifeq (x$(SIM), xgem5)
 else ifeq (x$(SIM), xvcs)
 	SIM_CMD ?= $(top_dir)/scripts/vcs.sh $(SIMV) +signature=build/$(NUM)/vcs.sig +signature-granularity=32 +permissive +loadmem=build/$(NUM)/test.hex +loadmem_addr=80000000 $(SIMV_ARGS) +permissive-off 
 	SIMV_POST := </dev/null 2> >(spike-dasm > build/$(NUM)/vcs.out) | tee build/$(NUM)/vcs.log
+	SIM_Link := cp  -rf $(inc_dir)/common/test.ld  build/$(NUM)/test.ld ; sed -i 's/OUT_FTM_SIZE/${out_size}/g' build/$(NUM)/test.ld
 endif
 
 
@@ -69,7 +75,7 @@ else
 	CFLAGS := -g -mcmodel=medany -mllvm -ffast-math -fno-common -fno-builtin-printf $(includes) $(defines)
 endif
 
-LDFLAGS :=-static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
+LDFLAGS :=-static -nostdlib  -nostartfiles  -T build/$(NUM)/test.ld
 
 target_elf = build/$(NUM)/test.elf
 target_dump = build/$(NUM)/test.dump
@@ -93,6 +99,7 @@ build/$(NUM)/test.o: test.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 	
 $(target_elf): $(objects)
+	$(SIM_Link)
 	$(LINK) -o $(target_elf) $^ $(LDFLAGS)
 
 $(target_map): $(target_elf)
