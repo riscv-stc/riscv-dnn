@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import math
 
 import tensorflow as tf
 
@@ -34,11 +35,11 @@ def softmax(num, hin, win):
 
 def test(num, params, defs):
     h, w = params
-
+    out_size = hex(math.ceil((h * w  )/8)*8)
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
     golden = softmax(num, h, w)
-    os.system(f"make DEFS='-DH={h} -DW={w} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make DEFS='-DH={h} -DW={w} {defs}'  OUT_SIZE={out_size} run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
     #os.system(f"make DEFS='-DH={h} -DW={w} {defs}' dump SIM={simulator} NUM={num}")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )

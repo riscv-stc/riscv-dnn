@@ -80,6 +80,9 @@ def test(num, params, defs):
     else:
         pt, pb, pl, pr = 0, 0, 0, 0
 
+    h_out = (math.ceil( (h + pt + pb - dh * (kh - 1) - 1) / stride_h + 1))
+    w_out = (math.ceil( (w + pl + pr - dw * (kw - 1) - 1) / stride_w + 1))
+    out_size = hex(math.ceil((h_out * w_out * cout)/8)*8)
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
     golden = conv_add_bn_relu(num, h, w, cin, cout, kh, kw, stride_h, stride_w, dh, dw, pt, pb, pl, pr)
@@ -90,7 +93,7 @@ def test(num, params, defs):
               f'-DPAD_TOP={pt} -DPAD_BOTTOM={pb} -DPAD_LEFT={pl} -DPAD_RIGHT={pr}'
     )
 
-    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make DEFS='{defines} {defs}' OUT_SIZE={out_size} run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)
