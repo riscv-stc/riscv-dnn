@@ -4,6 +4,7 @@
 #include "tensor.h"
 #include "mme.h"
 #include <stddef.h>
+#include <riscv_matrix.h>
 
 //#define FP16_ACC16 1
 static inline int matmul_add_matrix_batch16(void *dst, void *src1, void *src2, ConfigMatmul *ss, int srcSize, int dstSize)
@@ -23,238 +24,132 @@ static inline int matmul_add_matrix_batch16(void *dst, void *src1, void *src2, C
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    int mtype = 1 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettype(E16, M1, BA);
+    
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
+        tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
-            asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tile_n)
-                        : [rs1]"r"(n-j));
+            tile_n = msettilen(n-j);
             float16_t *_pdst = pdst+i*stride_d+j;
-            asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc0 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc1 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc2 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc3 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc4, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc4 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc5, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc5 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc6, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc6 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc7, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc7 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc8, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc8 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc9, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc9 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc10, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc10 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc11, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc11 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc12, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc12 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc13, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc13 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc14, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc14 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc15, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc15 = mlce16_m1(_pdst, stride_d*dataSize);
             for (int kk = 0; kk < k; kk += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-kk));
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc2+kk*stride_s2+j), [rs2]"r"(stride_s2*dataSize));
+                tile_m = msettilem(k-kk);
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc0, tr0, tr1");
+                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc1, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc2, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc3, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc3 = mfma_mm(acc3, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc4, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc4 = mfma_mm(acc4, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc5, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc5 = mfma_mm(acc5, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc6, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc6 = mfma_mm(acc6, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc7, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc7 = mfma_mm(acc7, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc8, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc8 = mfma_mm(acc8, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc9, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc9 = mfma_mm(acc9, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc10, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc10 = mfma_mm(acc10, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc11, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc11 = mfma_mm(acc11, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc12, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc12 = mfma_mm(acc12, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc13, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc13 = mfma_mm(acc13, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc14, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc14 = mfma_mm(acc14, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc15, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc15 = mfma_mm(acc15, tr0, tr1);
             }
             _pdst = pdst+i*stride_d+j;
-            asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc3, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc4, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc4, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc5, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc5, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc6, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc6, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc7, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc7, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc8, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc8, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc9, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc9, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc10, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc10, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc11, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc11, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc12, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc12, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc13, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc13, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc14, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc14, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc15, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
-        }
-        
+            msce16_m(acc15, _pdst, stride_d*dataSize);
+        }        
 
     }
+    
     return 0;
 }
 
@@ -276,134 +171,76 @@ static inline int matmul_add_matrix_batch8(void *dst, void *src1, void *src2, Co
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    int mtype = 1 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettype(E16, M1, BA);
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
+        tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
-            asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tile_n)
-                        : [rs1]"r"(n-j));
+            tile_n = msettilen(n-j);
             float16_t *_pdst = pdst+i*stride_d+j;
-            asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc0 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc1 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc2 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc3 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc4, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc4 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc5, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc5 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc6, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc6 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc7, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc7 = mlce16_m1(_pdst, stride_d*dataSize);
             for (int kk = 0; kk < k; kk += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-kk));
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc2+kk*stride_s2+j), [rs2]"r"(stride_s2*dataSize));
+                tile_k = msettilek(k-kk);
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc0, tr0, tr1");
+                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc1, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc2, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc3, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc3 = mfma_mm(acc3, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc4, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc4 = mfma_mm(acc4, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc5, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc5 = mfma_mm(acc5, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc6, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc6 = mfma_mm(acc6, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc7, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc7 = mfma_mm(acc7, tr0, tr1);
             }
             _pdst = pdst+i*stride_d+j;
-            asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc3, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc4, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc4, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc5, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc5, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc6, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc6, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc7, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
-        }
-        
+            msce16_m(acc7, _pdst, stride_d*dataSize);
+
+        }        
 
     }
+
     return 0;
 }
 
@@ -424,82 +261,48 @@ static inline int matmul_add_matrix_batch4(void *dst, void *src1, void *src2, Co
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    int mtype = 1 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettype(E16, M1, BA);
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
+        tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
-            asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tile_n)
-                        : [rs1]"r"(n-j));
+            tile_n = msettilen(n-j);
             float16_t *_pdst = pdst+i*stride_d+j;
-            asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc0 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc1 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc2 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc3 = mlce16_m1(_pdst, stride_d*dataSize);
             for (int kk = 0; kk < k; kk += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-kk));
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc2+kk*stride_s2+j), [rs2]"r"(stride_s2*dataSize));
+                tile_k = msettilek(k-kk);
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc0, tr0, tr1");
+                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc1, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc2, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc3, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc3 = mfma_mm(acc3, tr0, tr1);
             }
             _pdst = pdst+i*stride_d+j;
-            asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc2, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc3, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc3, _pdst, stride_d*dataSize);
+
         }
-        
 
     }
+
     return 0;
 }
 
@@ -520,56 +323,33 @@ static inline int matmul_add_matrix_batch2(void *dst, void *src1, void *src2, Co
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    int mtype = 1 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettype(E16, M1, BA);
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
+        tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
-            asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tile_n)
-                        : [rs1]"r"(n-j));
+            tile_n = msettilen(n-j);
             float16_t *_pdst = pdst+i*stride_d+j;
-            asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc0 = mlce16_m1(_pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("mlce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc1 = mlce16_m1(_pdst, stride_d*dataSize);
             for (int kk = 0; kk < k; kk += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-kk));
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc2+kk*stride_s2+j), [rs2]"r"(stride_s2*dataSize));
+                tile_k = msettilek(k-kk);
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc0, tr0, tr1");
+                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc1, tr0, tr1");
+                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc1 = mfma_mm(acc1, tr0, tr1);
             }
             _pdst = pdst+i*stride_d+j;
-            asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc1, _pdst, stride_d*dataSize);
         }
         
-
     }
+
     return 0;
 }
 
@@ -590,42 +370,24 @@ static inline int matmul_add_matrix(void *dst, void *src1, void *src2, ConfigMat
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    int mtype = 1 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettype(E16, M1, BA);
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
+        tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
-            asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tile_n)
-                        : [rs1]"r"(n-j));
+            tile_n = msettilen(n-j);
             float16_t *_pdst = pdst+i*stride_d+j;
-            asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            mfloat16m1_t acc0 = mlce16_m1(_pdst, stride_d*dataSize);
             for (int kk = 0; kk < k; kk += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-kk));
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc2+kk*stride_s2+j), [rs2]"r"(stride_s2*dataSize));
+                tile_k = msettilek(k-kk);
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc1), [rs2]"r"(stride_s1*dataSize));
-                asm volatile("mfma.mm acc0, tr0, tr1");
+                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                acc0 = mfma_mm(acc0, tr0, tr1);
             }
-            asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                        :
-                        : [rs1]"r"(_pdst), [rs2]"r"(stride_d*dataSize));
+            msce16_m(acc0, _pdst, stride_d*dataSize);
         }
-        
-
     }
+
     return 0;
 }
 

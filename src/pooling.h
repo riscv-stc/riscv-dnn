@@ -103,23 +103,15 @@ static inline int avgpool_mean(void *dst, void *src, Config *ss)
     float16_t numValidRecip = 1.0 / (hin * win);
     vl = vsetvl_e16m8(2048);
     for (int kc = 0; kc < cin; kc+=vl) {
-      asm volatile("vfmv.v.f v0, %[frs1]"
-                    :
-                    : [frs1]"f"((float16_t)0));
+      vfloat16m8_t _sum = vfmv_v_f_f16m8((float16_t)0, vl);
       for (int i = 0; i < hin; i++) {
         for (int j = 0; j < win; j++) {
-          asm volatile("vle16.v v8, (%[rs1])"
-                      :
-                      : [rs1]"r"(psrc + i*win*stride_src/2 + j*stride_src/2 + kc));
-          asm volatile("vfadd.vv v0, v0, v8");
+          vfloat16m8_t _data = vle16_v_f16m8(psrc + i*win*stride_src/2 + j*stride_src/2 + kc, vl);
+          _sum = vfadd_vv_f16m8(_sum, _data, vl);
         }
       }
-      asm volatile("vfmul.vf v16, v0, %[frs1]"
-                  :
-                  : [frs1]"f"(numValidRecip));
-      asm volatile("vse16.v v16, (%[rs1])"
-                  :
-                  : [rs1]"r"(pdst + kc));
+      vfloat16m8_t _avg = vfmul_vf_f16m8(_sum, numValidRecip, vl);
+      vse16_v_f16m8(pdst + kc, _avg, vl);
     }
 
     return 0;
