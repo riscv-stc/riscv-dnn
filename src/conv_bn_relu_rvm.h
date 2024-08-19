@@ -191,7 +191,7 @@ static inline int conv_bn_relu_rvm(void *dst, void *src, void *weight, void *alp
         mfloat16m1_t mbeta = mlce16_m1(pbeta + j, stride_d);
         mfloat16m1_t malpha = mlce16_m1(palpha + j, stride_d);
         mbeta = mbccr_m(mbeta);
-        malpha =  mbccr_m(malpha);
+        malpha = mbccr_m(malpha);
         acc1 = mfmul_mm(acc1, malpha);
         acc1 = mfadd_mm(acc1, mbeta);
 
@@ -208,31 +208,6 @@ static inline int conv_bn_relu_rvm(void *dst, void *src, void *weight, void *alp
 }
 
 #endif
-
-#define RELU \
-  vl = vsetvl_e16m8(tilen*8);\
-  for (k = 0; k < (tilem-8); k+=8) { \
-    asm volatile("mmvcr.v.m v24, acc8, %[rs2]"  \
-                  :                             \       
-                  : [rs2]"r"(k));               \
-    asm volatile("vfmax.vf v0, v24, %[frs2]"    \
-                  :                             \
-                  : [frs2]"f"((float16_t)0.f)); \
-    asm volatile("msce16.v v0, (%[rs1]), %[rs2]" \
-                  :                              \
-                  : [rs1]"r"(_pdst+k*stride_d/dataSize), [rs2]"r"(stride_d)); \
-  } \
-  vl = vsetvl_e16m8((tilem-k)*tilen); \ 
-  asm volatile("mmvcr.v.m v24, acc8, %[rs2]" \
-                : \
-                : [rs2]"r"(k)); \
-  asm volatile("vfmax.vf v0, v24, %[frs2]" \
-                : \
-                : [frs2]"f"((float16_t)0.f)); \
-  asm volatile("msce16.v v0, (%[rs1]), %[rs2]" \
-                : \
-                : [rs1]"r"(_pdst+k*stride_d/dataSize), [rs2]"r"(stride_d)); \
-
 
 static inline int conv_bn_relu_rvm_batch8(void  *dst, void *src, void *weight, void *alpha, void *beta, Config *ss)
 {

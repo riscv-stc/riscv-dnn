@@ -41,44 +41,6 @@ static inline int matmul_rvm(void *dst, void *src1, void *src2, int m , int k, i
     return 0;
 }
 
-static inline int matmul_rvm_tranpose(void *dst, void *src1, void *src2, ConfigMatmul *ss)
-{
-    int m = ss->m;
-    int k = ss->k;
-    int n = ss->n;
-
-    int stride_s1 = ss->stride_src1;
-    int stride_s2 = ss->stride_src2;
-    int stride_d  = ss->stride_dst;
-
-    float16_t *psrc1 = (float16_t *)src1;
-    float16_t *psrc2 = (float16_t *)src2;
-    float16_t *pdst = (float16_t *)dst;
-
-    const int dataSize = sizeof(float16_t);
-
-    int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
-
-    for(int i = 0; i < m; i += tile_m) {
-        tile_m = msettilem(m-i);
-        for (int j = 0; j < n; j += tile_n) {
-            tile_n = msettilen(n-j);
-            mfloat16m1_t acc0;
-            acc0 = mfsub_mm(acc0, acc0);
-            for (int kk = 0; kk < k; kk += tile_k) {
-                tile_k = msettilek(k-kk);
-                mfloat16m1_t tr0 = mlae16_m1(psrc1+i*stride_s1/dataSize+kk, stride_s1);
-                mfloat16m1_t tr1 = mlbte16_m1(psrc2+j*stride_s2/dataSize + kk, stride_s2);                
-                acc0 = mfma_mm(acc0, tr0, tr1);
-            }
-            msce16_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
-        }
-    
-    }
-    return 0;
-}
-
 static inline int matmul_rvm_batch16(void *dst, void *src1, void *src2, ConfigMatmul *ss, int srcSize, int dstSize)
 {
     int m = ss->m;
@@ -123,7 +85,7 @@ static inline int matmul_rvm_batch16(void *dst, void *src1, void *src2, ConfigMa
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);        
+                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
                 mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
                 acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
