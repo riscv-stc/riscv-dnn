@@ -1,11 +1,9 @@
-#ifndef __RELU_H__
-#define __RELU_H__
+#ifndef __LAYERNORM_H__
+#define __LAYERNORM_H__
 
-#include "exp.h"
 #include "mme.h"
 #include "tensor.h"
 #include <riscv_matrix.h>
-#include <riscv_vector.h>
 #include <stddef.h>
 
 /*
