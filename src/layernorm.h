@@ -18,9 +18,6 @@ void layernorm(void *dst, void *src, void *gemma, void *beta, Config *ss) {
   const int H = ss->hin, W = ss->win, C = ss->cin;
   const int M = H * W;
   const int N = C;
-  const int H = 5, W = 5, C = 4;
-  const int M = H * W;
-  const int N = C;
   float16_t *psrc = (float16_t *)src;
   float16_t *pdst = (float16_t *)dst;
   float16_t *pgemma = (float16_t *)gemma;
