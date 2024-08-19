@@ -11,16 +11,16 @@
 /*
  *   dst [H, W, C]
  *   src [H, W, C]
- *   gemma [1, 1, C]
+ *   gamma [1, 1, C]
  *   beta [1, 1, C]
  */
-void layernorm(void *dst, void *src, void *gemma, void *beta, Config *ss) {
+void layernorm(void *dst, void *src, void *gamma, void *beta, Config *ss) {
   const int H = ss->hin, W = ss->win, C = ss->cin;
   const int M = H * W;
   const int N = C;
   float16_t *psrc = (float16_t *)src;
   float16_t *pdst = (float16_t *)dst;
-  float16_t *pgemma = (float16_t *)gemma;
+  float16_t *pgamma = (float16_t *)gamma;
   float16_t *pbeta = (float16_t *)beta;
   float16_t mean_buffer[H * W];
   float16_t var_buffer[H * W];
@@ -86,7 +86,7 @@ void layernorm(void *dst, void *src, void *gemma, void *beta, Config *ss) {
   for (int n = 0; n < N; n += tilen) {
     tilen = msettilen(N - n);
     mfloat16m1_t bias = mlce16_m1(pbeta + n, sizeof(float16_t));
-    mfloat16m1_t weight = mlce16_m1(pgemma + n, sizeof(float16_t));
+    mfloat16m1_t weight = mlce16_m1(pgamma + n, sizeof(float16_t));
 
     for (int m = 0; m < M; ++m) {
       mfloat16m1_t tr1 = mlce16_m1(pdst + m * N + n, N * sizeof(float16_t));
