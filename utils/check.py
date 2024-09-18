@@ -1,5 +1,5 @@
 import numpy as np
-import jax.numpy as jnp
+# import jax.numpy as jnp
 
 # find the result from the start location of signature file
 def from_txt(fpath, golden, start ):
@@ -93,9 +93,11 @@ def diff_to_txt(a, b, filename, a_name, b_name):
     bh.dtype = f'uint{b.itemsize * 8}'
 
     w = a.itemsize * 2
-    if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
+    #if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
+    if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64:
         t = 'f'
     else:
+        print(type(a.dtype))
         t = 'd'
 
     diff_result = True
@@ -119,9 +121,16 @@ def check_to_txt(golden, result, filename, check_str):
     bh.dtype = f'uint{b.itemsize * 8}'
 
     w = a.itemsize * 2
-    if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
+    #if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
+    if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64:
+        print("mmmmmmmmm")
+        print(a.dtype)
+        print(type(a.dtype))
         t = 'f'
     else:
+        print("mmmmmmmmm")
+        print(a.dtype)
+        print(type(a.dtype))
         t = 'd'
 
     check_result = True
