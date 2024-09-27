@@ -96,8 +96,9 @@ def diff_to_txt(a, b, filename, a_name, b_name):
     #if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
     if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64:
         t = 'f'
+    elif a.dtype == np.uint8:
+        t = 'u'
     else:
-        print(type(a.dtype))
         t = 'd'
 
     diff_result = True
@@ -122,15 +123,11 @@ def check_to_txt(golden, result, filename, check_str):
 
     w = a.itemsize * 2
     #if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64 or a.dtype == jnp.bfloat16:
-    if a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64:
-        print("mmmmmmmmm")
-        print(a.dtype)
-        print(type(a.dtype))
+    if a.dtype == np.uint8:
+        t = 'u'
+    elif a.dtype == np.float16 or a.dtype == np.float32 or a.dtype == np.float64:
         t = 'f'
     else:
-        print("mmmmmmmmm")
-        print(a.dtype)
-        print(type(a.dtype))
         t = 'd'
 
     check_result = True
