@@ -42,7 +42,8 @@ static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss
     int stride_s2 = ss->stride_ker;
     int stride_d = ss->stride_dst;
 
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     int moutsh = hout << 16 | wout;
     int minsh = hin << 16 | win;
@@ -66,7 +67,7 @@ static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss
       
       for (int j = 0; j < n; j+=tilen) {
         tilen = msettilen(n-j);
-        mfloat16m1_t acc0;
+        mfloat16_t acc0;
         acc0 = mfsub_mm(acc0, acc0);
 
         for (int skh = 0; skh < kh; skh++) {
@@ -78,15 +79,15 @@ static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss
             float16_t *_psrc2 = psrc2+skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
             for (int skc = 0; skc < cin;  skc+=tilek) {
                 tilek = msettilek(cin-skc);
-                mfloat16m1_t tr0 = mlufae16_m(_prsc1+skc, stride_s1);
-                mfloat16m1_t tr1 = mlbe16_m1(_psrc2+skc*stride_s2/dataSize, stride_s2);
+                mfloat16_t tr0 = mlufa_m(_prsc1+skc, stride_s1);
+                mfloat16_t tr1 = mlb_m(_psrc2+skc*stride_s2/dataSize, stride_s2);
                 acc0 = mfma_mm(acc0, tr0, tr1);
             }
           }
         }
-        mfloat16m1_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
+        mfloat16_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
         acc0 = mfadd_mm(acc1, acc0);
-        msce16_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
+        msc_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
       }
     }
 
@@ -129,7 +130,8 @@ static inline int im2col_add(void *dst, void *src, void *weight, Config *ss, int
     int stride_s2 = ss->stride_ker;
     int stride_d = ss->stride_dst;
 
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     int moutsh = hout << 16 | wout;
     int minsh = hin << 16 | win;
@@ -153,7 +155,7 @@ static inline int im2col_add(void *dst, void *src, void *weight, Config *ss, int
       
       for (int j = 0; j < n; j+=tilen) {
         tilen = msettilen(n-j);
-        mfloat16m1_t acc0;
+        mfloat16_t acc0;
         acc0 = mfsub_mm(acc0, acc0);
 
         int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
@@ -162,13 +164,13 @@ static inline int im2col_add(void *dst, void *src, void *weight, Config *ss, int
         float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
         for (int skc = 0; skc < cin;  skc+=tilek) {
             tilek = msettilek(cin-skc);
-            mfloat16m1_t tr0 = mlufae16_m(_prsc1+skc, stride_s1);
-            mfloat16m1_t tr1 = mlbe16_m1(psrc2+skc*stride_s2/dataSize+j, stride_s2);
+            mfloat16_t tr0 = mlufa_m(_prsc1+skc, stride_s1);
+            mfloat16_t tr1 = mlb_m(psrc2+skc*stride_s2/dataSize+j, stride_s2);
             acc0 = mfma_mm(acc0, tr0, tr1);
         }
-        mfloat16m1_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
+        mfloat16_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
         acc0 = mfadd_mm(acc1, acc0);
-        msce16_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
+        msc_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
       }
     }
 

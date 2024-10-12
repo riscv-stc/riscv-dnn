@@ -19,21 +19,22 @@ static inline int matmul_rvm(void *dst, void *src1, void *src2, int m , int k, i
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     for(int i = 0; i < m; i += tile_m) {
         tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
             tile_n = msettilen(n-j);
-            mfloat16m1_t acc0;
+            mfloat16_t acc0;
             acc0 = mfsub_mm(acc0, acc0);
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
-                mfloat16m1_t tr0 = mlae16_m1(psrc1+i*k+kk, k*dataSize);
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*n+j, n*dataSize);
+                mfloat16_t tr0 = mla_m(psrc1+i*k+kk, k*dataSize);
+                mfloat16_t tr1 = mlb_m(psrc2+kk*n+j, n*dataSize);
                 acc0 = mfma_mm(acc0, tr0, tr1);
             }
-            msce16_m(acc0, pdst+i*n+j, n*dataSize);
+            msc_m(acc0, pdst+i*n+j, n*dataSize);
         }
         
 
@@ -58,12 +59,13 @@ static inline int matmul_rvm_batch16(void *dst, void *src1, void *src2, ConfigMa
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
     for(int i = 0; i < m; i += tile_m) {
         tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
             tile_n = msettilen(n-j);
-            mfloat16m1_t acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7, acc8,
+            mfloat16_t acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7, acc8,
                 acc9, acc10, acc11, acc12, acc13, acc14, acc15;
             acc0 = mfsub_mm(acc0, acc0);
             acc1 = mfsub_mm(acc1, acc1);
@@ -85,88 +87,88 @@ static inline int matmul_rvm_batch16(void *dst, void *src1, void *src2, ConfigMa
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
-                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                mfloat16_t tr1 = mlb_m(psrc2+kk*stride_s2+j, stride_s2*dataSize);
+                mfloat16_t tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc3 = mfma_mm(acc3, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc4 = mfma_mm(acc4, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc5 = mfma_mm(acc5, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc6 = mfma_mm(acc6, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc7 = mfma_mm(acc7, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc8 = mfma_mm(acc8, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc9 = mfma_mm(acc9, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc10 = mfma_mm(acc10, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc11 = mfma_mm(acc11, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc12 = mfma_mm(acc12, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc13 = mfma_mm(acc13, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc14 = mfma_mm(acc14, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc15 = mfma_mm(acc15, tr0, tr1);
             }
 
             float16_t *_pdst = pdst+i*stride_d+j;
-            msce16_m(acc0, _pdst, stride_d*dataSize);
+            msc_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc1, _pdst, stride_d*dataSize);
+            msc_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc2, _pdst, stride_d*dataSize);
+            msc_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc3, _pdst, stride_d*dataSize);
+            msc_m(acc3, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc4, _pdst, stride_d*dataSize);
+            msc_m(acc4, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc5, _pdst, stride_d*dataSize);
+            msc_m(acc5, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc6, _pdst, stride_d*dataSize);
+            msc_m(acc6, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc7, _pdst, stride_d*dataSize);
+            msc_m(acc7, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc8, _pdst, stride_d*dataSize);
+            msc_m(acc8, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc9, _pdst, stride_d*dataSize);
+            msc_m(acc9, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc10, _pdst, stride_d*dataSize);
+            msc_m(acc10, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc11, _pdst, stride_d*dataSize);
+            msc_m(acc11, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc12, _pdst, stride_d*dataSize);
+            msc_m(acc12, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc13, _pdst, stride_d*dataSize);
+            msc_m(acc13, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc14, _pdst, stride_d*dataSize);
+            msc_m(acc14, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc15, _pdst, stride_d*dataSize);
+            msc_m(acc15, _pdst, stride_d*dataSize);
         }
 
     }
@@ -191,13 +193,14 @@ static inline int matmul_rvm_batch8(void *dst, void *src1, void *src2, ConfigMat
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     for(int i = 0; i < m; i += tile_m) {
         tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
             tile_n = msettilen(n-j);
-            mfloat16m1_t acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
+            mfloat16_t acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
             acc0 = mfsub_mm(acc0, acc0);
             acc1 = mfsub_mm(acc1, acc1);
             acc2 = mfsub_mm(acc2, acc2);
@@ -210,48 +213,48 @@ static inline int matmul_rvm_batch8(void *dst, void *src1, void *src2, ConfigMat
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);        
-                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                mfloat16_t tr1 = mlb_m(psrc2+kk*stride_s2+j, stride_s2*dataSize);        
+                mfloat16_t tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc3 = mfma_mm(acc3, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc4 = mfma_mm(acc4, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc5 = mfma_mm(acc5, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc6 = mfma_mm(acc6, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc7 = mfma_mm(acc7, tr0, tr1);
             }
 
             float16_t *_pdst = pdst+i*stride_d+j;
-            msce16_m(acc0, _pdst, stride_d*dataSize);
+            msc_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc1, _pdst, stride_d*dataSize);
+            msc_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc2, _pdst, stride_d*dataSize);
+            msc_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc3, _pdst, stride_d*dataSize);
+            msc_m(acc3, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc4, _pdst, stride_d*dataSize);
+            msc_m(acc4, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc5, _pdst, stride_d*dataSize);
+            msc_m(acc5, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc6, _pdst, stride_d*dataSize);
+            msc_m(acc6, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc7, _pdst, stride_d*dataSize);
+            msc_m(acc7, _pdst, stride_d*dataSize);
         }
 
     }
@@ -276,13 +279,14 @@ static inline int matmul_rvm_batch4(void *dst, void *src1, void *src2, ConfigMat
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     for(int i = 0; i < m; i += tile_m) {
         tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
             tile_n = msettilen(n-j);
-            mfloat16m1_t acc0, acc1, acc2, acc3;
+            mfloat16_t acc0, acc1, acc2, acc3;
             acc0 = mfsub_mm(acc0, acc0);
             acc1 = mfsub_mm(acc1, acc1);
             acc2 = mfsub_mm(acc2, acc2);
@@ -291,28 +295,28 @@ static inline int matmul_rvm_batch4(void *dst, void *src1, void *src2, ConfigMat
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);
-                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);        
+                mfloat16_t tr1 = mlb_m(psrc2+kk*stride_s2+j, stride_s2*dataSize);
+                mfloat16_t tr0 = mla_m(_psrc1, stride_s1*dataSize);        
                 acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);        
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);        
                 acc1 = mfma_mm(acc1, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);        
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);        
                 acc2 = mfma_mm(acc2, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);        
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);        
                 acc3 = mfma_mm(acc3, tr0, tr1);
             }
 
             float16_t *_pdst = pdst+i*stride_d+j;
-            msce16_m(acc0, _pdst, stride_d*dataSize);
+            msc_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc1, _pdst, stride_d*dataSize);
+            msc_m(acc1, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc2, _pdst, stride_d*dataSize);
+            msc_m(acc2, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc3, _pdst, stride_d*dataSize);
+            msc_m(acc3, _pdst, stride_d*dataSize);
         }
         
     }
@@ -336,30 +340,31 @@ static inline int matmul_rvm_batch2(void *dst, void *src1, void *src2, ConfigMat
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_n = 0, tile_k = 0;
-    msettype(E16, M1, BA);
+    msettypei(0x1);
+    msettypehi(0x1);
 
     for(int i = 0; i < m; i += tile_m) {
         tile_m = msettilem(m-i);
         for (int j = 0; j < n; j += tile_n) {
             tile_n = msettilen(n-j);
-            mfloat16m1_t acc0, acc1;
+            mfloat16_t acc0, acc1;
             acc0 = mfsub_mm(acc0, acc0);
             acc1 = mfsub_mm(acc1, acc1);
             for (int kk = 0; kk < k; kk += tile_k) {
                 tile_k = msettilek(k-kk);
                 float16_t *_psrc1 = psrc1+i*stride_s1+kk;
-                mfloat16m1_t tr1 = mlbe16_m1(psrc2+kk*stride_s2+j, stride_s2*dataSize);        
-                mfloat16m1_t tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                mfloat16_t tr1 = mlb_m(psrc2+kk*stride_s2+j, stride_s2*dataSize);        
+                mfloat16_t tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc0 = mfma_mm(acc0, tr0, tr1);
                 _psrc1 += srcSize;
-                tr0 = mlae16_m1(_psrc1, stride_s1*dataSize);
+                tr0 = mla_m(_psrc1, stride_s1*dataSize);
                 acc1 = mfma_mm(acc1, tr0, tr1);
             }
 
             float16_t *_pdst = pdst+i*stride_d+j;
-            msce16_m(acc0, _pdst, stride_d*dataSize);
+            msc_m(acc0, _pdst, stride_d*dataSize);
             _pdst += dstSize;
-            msce16_m(acc1, _pdst, stride_d*dataSize);
+            msc_m(acc1, _pdst, stride_d*dataSize);
         }
     }
     return 0;
