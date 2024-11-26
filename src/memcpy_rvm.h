@@ -4,7 +4,7 @@
 #include "tensor.h"
 #include <stddef.h>
 #include <riscv_vector.h>
-
+#include <riscv_matrix.h>
 //#define FP16_ACC16 1
 
 static inline int memcpy_rvm(void *dst, void *src, int m, int k)
@@ -15,57 +15,38 @@ static inline int memcpy_rvm(void *dst, void *src, int m, int k)
     const int dataSize = sizeof(float16_t);
 
     int tile_m = 0, tile_k = 0;
-    int mtype = e16 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
-    for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
-        for (int j = 0; j < k; j += tile_k) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tile_k)
-                            : [rs1]"r"(k-j));
-                asm volatile("mlae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(psrc+i*k+j), [rs2]"r"(k*dataSize));
-                asm volatile("msae16.m tr0, (%[rs1]), %[rs2]"
-                            : 
-                            : [rs1]"r"(pdst+i*k+j), [rs2]"r"(k*dataSize));
-        }
-        
+    msettypei(0x1);
+    msettypehi(0x1);
 
+    for(int i = 0; i < m; i += tile_m) {
+        tile_m = msettilem(m-i);
+        for (int j = 0; j < k; j += tile_k) {
+            tile_k = msettilek(k-j);
+            mfloat16_t tr0 = mla_m(psrc+i*k+j, k*dataSize);
+            msa_m(tr0, pdst+i*k+j, k*dataSize);
+        }
     }
     return 0;
 }
 
-static inline int memclr_rvm(void *dst, int len)
+static inline int memclr_rvm(void *dst, int m, int k)
 {
     float16_t *pdst = (float16_t *)dst;
 
     const int dataSize = sizeof(float16_t);
-    
-    int m = len / 64;
-    int tile_m = 0, tile_n = 0;
-    int mtype = e16 | (1<<3) ; // sew = e16, mlmul = 128
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
-    asm volatile("msettilem %[rd], %[rs1]"
-                : [rd]"=r"(tile_m)
-                : [rs1]"r"(64));
-    asm volatile("msettilen %[rd], %[rs1]"
-                : [rd]"=r"(tile_n)
-                : [rs1]"r"(64));
-    asm volatile("msubc.mm acc0, acc0");
+
+    int tile_m = 0, tile_k = 0;
+    msettypei(0x1);
+    msettypehi(0x1);
+
     for(int i = 0; i < m; i += tile_m) {
-        asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tile_m)
-                    : [rs1]"r"(m-i));
-        asm volatile("msce16.m acc0, (%[rs1]), %[rs2]"
-                    : 
-                    : [rs1]"r"(pdst+i*64), [rs2]"r"(64*dataSize));
+        tile_m = msettilem(m-i);
+        for (int j = 0; j < k; j += tile_k) {
+            tile_k = msettilek(k-j);
+            mfloat16_t zero;
+            zero = mfsub_mm(zero, zero);
+            msa_m(zero, pdst+i*k+j, k*dataSize);
+        }
     }
     return 0;
 }

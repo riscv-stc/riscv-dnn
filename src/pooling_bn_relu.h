@@ -38,95 +38,64 @@ static inline int maxpool_bn_relu(void *dst, void *src, void *alpha, void *beta,
     float16_t *pbeta = (float16_t *)beta;
     float16_t *pdst = (float16_t *)dst;
     vl = vsetvl_e16m1(cin);
+    vfloat16m1_t v28 = vle16_v_f16m1(palpha, vl);
+    vfloat16m1_t v29 = vle16_v_f16m1(pbeta, vl);
+    vfloat16m1_t v30 = vle16_v_f16m1(0.f, vl);
 
-    asm volatile("vle16.v v28, (%[rs1])"
-                :
-                : [rs1]"r"(palpha));
-    asm volatile("vle16.v v29, (%[rs1])"
-                :
-                : [rs1]"r"(pbeta));
-    asm volatile("vmv.v.x v30, %[rs1]"
-                :
-                : [rs1]"r"(0x0));
     for (int i = 0; i < hout; i++) {
         int sh0 = i * stride_h;
         int last_valid = (i==(hout-1) && pad_b==1)? 1 : 0;
         for (int j = 0; j < wout; j+=4) {
           int sw0 = j * stride_w;
-          asm volatile("vmv.v.x v1, %[rs1]"
-                      :
-                      : [rs1]"r"(0xfbff));
-          asm volatile("vmv.v.x v2, %[rs1]"
-                      :
-                      : [rs1]"r"(0xfbff));
-          asm volatile("vmv.v.x v3, %[rs1]"
-                      :
-                      : [rs1]"r"(0xfbff));
-          asm volatile("vmv.v.x v4, %[rs1]"
-                      :
-                      : [rs1]"r"(0xfbff));
+          
+          vfloat16m1_t v1 = vfmv_v_f_f16m1(-65500.0, vl);
+          vfloat16m1_t v2 = vfmv_v_f_f16m1(-65500.0, vl);
+          vfloat16m1_t v3 = vfmv_v_f_f16m1(-65500.0, vl);
+          vfloat16m1_t v4 = vfmv_v_f_f16m1(-65500.0, vl);
           for (int m = 0; m < kh-last_valid; m++) {
             int sy = sh0 + m;
             for (int n = 0; n < kw ; n++) {
               float16_t *_psrc = psrc + sy * win * cin + (sw0 + n) * cin;
-              asm volatile("vle16.v v5, (%[rs1])"
-                          :
-                          : [rs1]"r"(_psrc));
+              vfloat16m1_t v5 = vle16_v_f16m1(_psrc, vl);
               _psrc+=cin*stride_w;
-              asm volatile("vle16.v v6, (%[rs1])"
-                          :
-                          : [rs1]"r"(_psrc));
+              vfloat16m1_t v6 = vle16_v_f16m1(_psrc, vl);
               _psrc+=cin*stride_w;
-              asm volatile("vle16.v v7, (%[rs1])"
-                          :
-                          : [rs1]"r"(_psrc));
+              vfloat16m1_t v7 = vle16_v_f16m1(_psrc, vl);
               
-              
-              asm volatile("vfmax.vv v1, v1, v5");
-              asm volatile("vfmax.vv v2, v2, v6");
-              asm volatile("vfmax.vv v3, v3, v7");
+              v1 = vfmax_vv_f16m1(v1, v5, vl);
+              v2 = vfmax_vv_f16m1(v2, v6, vl);
+              v3 = vfmax_vv_f16m1(v3, v7, vl);
               if (!(pad_r==1 && n==(kw-1) && j==(wout-4))) {
                 _psrc+=cin*stride_w;
-                asm volatile("vle16.v v8, (%[rs1])"
-                            :
-                            : [rs1]"r"(_psrc));
-                asm volatile("vfmax.vv v4, v4, v8");
+                vfloat16m1_t v8 = vle16_v_f16m1(_psrc, vl);
+                v4 = vfmax_vv_f16m1(v4, v8);
               }
               
             }
           }
 
           // bn
-          asm volatile("vfmul.vv v9,  v1,  v28");
-          asm volatile("vfmul.vv v10, v2,  v28");
-          asm volatile("vfmul.vv v11, v3,  v28");
-          asm volatile("vfmul.vv v12, v4,  v28");
-
-          asm volatile("vfadd.vv v13, v9,  v29");
-          asm volatile("vfadd.vv v14, v10, v29");
-          asm volatile("vfadd.vv v15, v11, v29");
-          asm volatile("vfadd.vv v16, v12, v29");
+          vfloat16m1_t v9  = vfmul_vv_f16m1(v1, v28, vl);
+          vfloat16m1_t v10 = vfmul_vv_f16m1(v2, v28, vl);
+          vfloat16m1_t v11 = vfmul_vv_f16m1(v3, v28, vl);
+          vfloat16m1_t v12 = vfmul_vv_f16m1(v4, v28, vl);
+          vfloat16m1_t v13 = vfadd_vv_f16m1(v9, v29, vl);
+          vfloat16m1_t v14 = vfadd_vv_f16m1(v10, v29, vl);
+          vfloat16m1_t v15 = vfadd_vv_f16m1(v11, v29, vl);
+          vfloat16m1_t v16 = vfadd_vv_f16m1(v12, v29, vl);
           // relu
-          asm volatile("vfmax.vv v17, v13, v30");
-          asm volatile("vfmax.vv v18, v14, v30");
-          asm volatile("vfmax.vv v19, v15, v30");
-          asm volatile("vfmax.vv v20, v16, v30");
+          vfloat16m1_t v17 = vfmax_vv_f16m1(v13, v30, vl);
+          vfloat16m1_t v18 = vfmax_vv_f16m1(v14, v30, vl);
+          vfloat16m1_t v19 = vfmax_vv_f16m1(v15, v30, vl);
+          vfloat16m1_t v20 = vfmax_vv_f16m1(v16, v30, vl);
           float16_t *_pdst = pdst + i * wout * cin + j * cin;
-          asm volatile("vse16.v v17, (%[rs1])"
-                      :
-                      : [rs1]"r"(_pdst));
+          vse16_v_f16m1(_pdst, v17, vl);
           _pdst+=cin;
-          asm volatile("vse16.v v18, (%[rs1])"
-                      :
-                      : [rs1]"r"(_pdst));
+          vse16_v_f16m1(_pdst, v18, vl);
           _pdst+=cin;
-          asm volatile("vse16.v v19, (%[rs1])"
-                      :
-                      : [rs1]"r"(_pdst));
+          vse16_v_f16m1(_pdst, v19, vl);
           _pdst+=cin;
-          asm volatile("vse16.v v20, (%[rs1])"
-                      :
-                      : [rs1]"r"(_pdst));
+          vse16_v_f16m1(_pdst, v20, vl);
         }
     }
 

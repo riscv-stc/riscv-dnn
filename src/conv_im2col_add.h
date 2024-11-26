@@ -6,6 +6,7 @@
 
 #include "mme.h"
 #include "matmul.h"
+#include <riscv_matrix.h>
 
 static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss)
 {
@@ -41,10 +42,8 @@ static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss
     int stride_s2 = ss->stride_ker;
     int stride_d = ss->stride_dst;
 
-    int mtype = 1;
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettypei(0x1);
+    msettypehi(0x1);
 
     int moutsh = hout << 16 | wout;
     int minsh = hin << 16 | win;
@@ -57,59 +56,38 @@ static inline int conv_im2col_add(void *dst, void *src, void *weight, Config *ss
 
     int tilem, tilen, tilek;
 
-    asm volatile("msetoutsh x0, %[rs1], %[rs2]"
-                : 
-                : [rs1]"r"(moutsh), [rs2]"r"(mstdi));
-    asm volatile("msetinsh x0, %[rs1], %[rs2]"
-                :
-                : [rs1]"r"(minsh), [rs2]"r"(mpad));
+    msetinsh(minsh, mpad);
+    msetoutsh(moutsh, mstdi);
 
     for (int i = 0; i < m; i+=tilem) {
-      asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tilem)
-                    : [rs1]"r"(m-i));
+      tilem = msettilem(m-i);
 
       int hout_pos = i / wout;
       int wout_pos = i - hout_pos * wout;
       
       for (int j = 0; j < n; j+=tilen) {
-        asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tilen)
-                        : [rs1]"r"(n-j));
-        asm volatile("mwsubc.mm acc0, acc0");
+        tilen = msettilen(n-j);
+        mfloat16_t acc0;
+        acc0 = mfsub_mm(acc0, acc0);
 
         for (int skh = 0; skh < kh; skh++) {
           int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
           for (int skw = 0; skw < kw; skw++) {
             int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-            asm volatile("msetsk x0, %[rs1], %[rs2]"
-                        : 
-                        : [rs1]"r"(hin_pos <<  16 | (win_pos & 0xffff)), [rs2]"r"((skw * dilation_w) << 16 | wout_pos));
+            msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
             float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
             float16_t *_psrc2 = psrc2+skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
             for (int skc = 0; skc < cin;  skc+=tilek) {
-                asm volatile("msettilek %[rd], %[rs1]"
-                            : [rd]"=r"(tilek)
-                            : [rs1]"r"(cin-skc));
-                asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_prsc1+skc), [rs2]"r"(stride_s1));
-                
-                asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                            :
-                            :[rs1]"r"(_psrc2+skc*stride_s2/dataSize), [rs2]"r"(stride_s2));
-                asm volatile("mfwma.mm acc0, tr0, tr1");
+                tilek = msettilek(cin-skc);
+                mfloat16_t tr0 = mlufa_m(_prsc1+skc, stride_s1);
+                mfloat16_t tr1 = mlb_m(_psrc2+skc*stride_s2/dataSize, stride_s2);
+                acc0 = mfma_mm(acc0, tr0, tr1);
             }
           }
         }
-        asm volatile("mfncvtc.f.fw.m acc1, acc0");
-        asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                    : 
-                    : [rs1]"r"(pdst+i*stride_d/dataSize+j), [rs2]"r"(stride_d));
-        asm volatile("mfaddc.mm acc1, acc0");
-        asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                    : 
-                    : [rs1]"r"(pdst+i*stride_d/dataSize+j), [rs2]"r"(stride_d));
+        mfloat16_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
+        acc0 = mfadd_mm(acc1, acc0);
+        msc_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
       }
     }
 
@@ -152,10 +130,8 @@ static inline int im2col_add(void *dst, void *src, void *weight, Config *ss, int
     int stride_s2 = ss->stride_ker;
     int stride_d = ss->stride_dst;
 
-    int mtype = 1;
-    asm volatile("msettype x0, %[rs1]"
-                : 
-                : [rs1]"r"(mtype));
+    msettypei(0x1);
+    msettypehi(0x1);
 
     int moutsh = hout << 16 | wout;
     int minsh = hin << 16 | win;
@@ -168,54 +144,33 @@ static inline int im2col_add(void *dst, void *src, void *weight, Config *ss, int
 
     int tilem, tilen, tilek;
 
-    asm volatile("msetoutsh x0, %[rs1], %[rs2]"
-                : 
-                : [rs1]"r"(moutsh), [rs2]"r"(mstdi));
-    asm volatile("msetinsh x0, %[rs1], %[rs2]"
-                :
-                : [rs1]"r"(minsh), [rs2]"r"(mpad));
+    msetinsh(minsh, mpad);
+    msetoutsh(moutsh, mstdi);
 
     for (int i = 0; i < m; i+=tilem) {
-      asm volatile("msettilem %[rd], %[rs1]"
-                    : [rd]"=r"(tilem)
-                    : [rs1]"r"(m-i));
+      tilem = msettilem(m-i);
 
       int hout_pos = i / wout;
       int wout_pos = i - hout_pos * wout;
       
       for (int j = 0; j < n; j+=tilen) {
-        asm volatile("msettilen %[rd], %[rs1]"
-                        : [rd]"=r"(tilen)
-                        : [rs1]"r"(n-j));
-        asm volatile("mwsubc.mm acc0, acc0");
+        tilen = msettilen(n-j);
+        mfloat16_t acc0;
+        acc0 = mfsub_mm(acc0, acc0);
 
         int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
         int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-        asm volatile("msetsk x0, %[rs1], %[rs2]"
-                      : 
-                      : [rs1]"r"(hin_pos <<  16 | (win_pos & 0xffff)), [rs2]"r"((skw * dilation_w) << 16 | wout_pos));
+        msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
         float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
         for (int skc = 0; skc < cin;  skc+=tilek) {
-            asm volatile("msettilek %[rd], %[rs1]"
-                        : [rd]"=r"(tilek)
-                        : [rs1]"r"(cin-skc));
-            asm volatile("mlufae16.m tr0, (%[rs1]), %[rs2]"
-                        :
-                        :[rs1]"r"(_prsc1+skc), [rs2]"r"(stride_s1));
-                
-            asm volatile("mlbe16.m tr1, (%[rs1]), %[rs2]"
-                        :
-                        :[rs1]"r"(psrc2+skc*stride_s2/dataSize+j), [rs2]"r"(stride_s2));
-            asm volatile("mfwma.mm acc0, tr0, tr1");
+            tilek = msettilek(cin-skc);
+            mfloat16_t tr0 = mlufa_m(_prsc1+skc, stride_s1);
+            mfloat16_t tr1 = mlb_m(psrc2+skc*stride_s2/dataSize+j, stride_s2);
+            acc0 = mfma_mm(acc0, tr0, tr1);
         }
-        asm volatile("mfncvtc.f.fw.m acc1, acc0");
-        asm volatile("mlce16.m acc0, (%[rs1]), %[rs2]"
-                    : 
-                    : [rs1]"r"(pdst+i*stride_d/dataSize+j), [rs2]"r"(stride_d));
-        asm volatile("mfaddc.mm acc1, acc0");
-        asm volatile("msce16.m acc1, (%[rs1]), %[rs2]"
-                    : 
-                    : [rs1]"r"(pdst+i*stride_d/dataSize+j), [rs2]"r"(stride_d));
+        mfloat16_t acc1 = mlce16_m1(pdst+i*stride_d/dataSize+j, stride_d);
+        acc0 = mfadd_mm(acc1, acc0);
+        msc_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
       }
     }
 
