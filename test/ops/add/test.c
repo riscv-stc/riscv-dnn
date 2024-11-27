@@ -33,7 +33,7 @@ int main(int argc, char **argv)
     PERF_BEGIN();
 
     for (int i = 0; i < NLOOPS; i++) {
-        add(&dstMat, &src1Mat, &src2Mat);
+        add(&dstMat, &src1Mat, &src2Mat, h * w * cin * cout);
     }
 
     PERF_END();
