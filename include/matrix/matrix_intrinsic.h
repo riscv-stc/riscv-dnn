@@ -1,92 +1,23 @@
+#ifndef __MATRIX_INTRINSIC_H__
+#define __MATRIX_INTRINSIC_H__
+
+#include <riscv_matrix.h>
 #include <riscv_vector.h>
 
-#define MWIDTH 128
-#define e8  0
-#define e16 1
-#define e32 2
-#define e64 3
+// Only Matrix-0.5
+#define CONFIGURATION_MTYPE(hi, li)                                            \
+  do {                                                                         \
+    msettypei((li));                                                           \
+    msettypehi((hi));                                                          \
+  } while (0);
 
-inline int msettype(int mtype) {
-    int rd;
-    asm volatile("msettype %[rd], %[rs1]"
-                : [rd]"=r"(rd)
-                : [rs1]"r"(mtype));
-    return rd;
-}
+// SET DTYPE=FP16 SEW=16
+#define SET_MBA0_FP16() CONFIGURATION_MTYPE(0x1, 0x1)
+// SET DTYPE=FP32 SEW=32
+#define SET_MBA0_FP32() CONFIGURATION_MTYPE(0x4, 0x2)
+// SET DTYPE=FP16,F32 SEW=16
+#define SET_MBA0_FP16_FP32() CONFIGURATION_MTYPE(0x5, 0x1)
+// SET DTYPE=FP16,FP32 SEW=32
+#define SET_MBA0_FP32_FP16() CONFIGURATION_MTYPE(0x5, 0x2)
 
-inline int msettilem(int size) {
-    int rd;
-    asm volatile("msettilem %[rd], %[rs1]"
-                : [rd]"=r"(rd)
-                : [rs1]"r"(size));
-    return rd;
-}
-
-inline int msettilek(int size) {
-    int rd;
-    asm volatile("msettilek %[rd], %[rs1]"
-                : [rd]"=r"(rd)
-                : [rs1]"r"(size));
-    return rd;
-}
-
-inline int msettilen(int size) {
-    int rd;
-    asm volatile("msettilen %[rd], %[rs1]"
-                : [rd]"=r"(rd)
-                : [rs1]"r"(size));
-    return rd;
-}
-
-inline vfloat16m1_t mle16_ma(float16_t *src, int stride) {
-    vfloat16m1_t vd;
-    asm volatile("mle16.m.a %[vd], (%[rs1]), %[rs2]"
-                : [vd]"=vr"(vd)
-                : [rs1]"r"(src), [rs2]"r"(stride));
-    return vd;
-}
-
-inline  vfloat16m1_t mle16_mb(float16_t *src, int stride) {
-    vfloat16m1_t vd;
-    asm volatile("mle16.m.b %[vd], (%[rs1]), %[rs2]"
-                : [vd]"=vr"(vd)
-                : [rs1]"r"(src), [rs2]"r"(stride));
-    return vd;
-}
-
-inline vfloat16m1_t mle16_mc(float16_t *src, int stride) {
-    vfloat16m1_t vd;
-    asm volatile("mle16.m.c %[vd], (%[rs1]), %[rs2]"
-                : [vd]"=vr"(vd)
-                : [rs1]"r"(src), [rs2]"r"(stride));
-    return vd;
-}
-
-inline vfloat32m2_t mfwmul_mm(vfloat32m2_t acc, vfloat16m1_t a, vfloat16m1_t b) {
-    asm volatile("mfwmul.mm %[vd], %[vs1], %[vs2]"
-                : [vd]"=vr"(acc)
-                : [vs1]"vr"(a), [vs2]"vr"(b));
-    return acc;
-}
-
-inline void mse16_mc(vfloat16m1_t dst, float16_t *src, int stride) {
-    asm volatile("mse16.m.c %[vd], (%[rs1]), %[rs2]"
-                : [vd]"=vr"(dst)
-                : [rs1]"r"(src), [rs2]"r"(stride));
-}
-
-inline vfloat16m1_t m_vfncvt_f_f_w(vfloat32m2_t src) {
-    vfloat16m1_t vd;
-    asm volatile("vfncvt.f.f.w %[vd], %[vs2]"
-                :[vd]"=vr"(vd)
-                :[vs2]"vr"(src));
-    return vd;
-}
-
-inline vfloat32m2_t m_vfmv_v_f(float32_t src) {
-    vfloat32m2_t vd;
-    asm volatile("vfmv.v.f %[vd], %[rs1]"
-                : [vd]"=vr"(vd)
-                : [rs1]"f"(src));
-    return vd;
-}
+#endif // __MATRIX_INTRINSIC_H__

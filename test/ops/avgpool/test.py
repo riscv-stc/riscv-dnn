@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import math
 
 import tensorflow as tf
 
@@ -59,6 +60,9 @@ def test(num, params, defs):
 
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
+    h_out = math.ceil((h + pt + pb - kh) / stride_h + 1)
+    w_out = math.ceil((w + pl + pr - kw) / stride_w + 1)
+    out_size = hex(math.ceil((h_out * w_out * cin )/8)*8)
     golden = avgpool(num, h, w, cin, kh, kw, stride_h, stride_w, pt, pb, pl, pr)
     defines = (
         f'-DHIN={h} -DWIN={w} -DCIN={cin} -DKH={kh} -DKW={kw} '
@@ -66,7 +70,7 @@ def test(num, params, defs):
               f'-DPAD_TOP={pt} -DPAD_BOTTOM={pb} -DPAD_LEFT={pl} -DPAD_RIGHT={pr}'
     )
 
-    os.system(f"make DEFS='{defines} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make DEFS='{defines} {defs}' OUT_SIZE={out_size} run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)

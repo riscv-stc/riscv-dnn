@@ -11,7 +11,8 @@ from work import do_test
 title = "Diffent Optimization levels for matmul operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+# opt_levels = {"rvv":"-O2", "rvm":" -D__RVM__" }
+opt_levels = {"rvm":" -D__RVM__" }
 
 cols = ['Workload', 'Cycles', 'IPC', 'Front', 'BS', 'MEM', 'CORE', 'Retire']
 
@@ -59,7 +60,7 @@ def test(num, params, defs):
     else:
         rk = k
         ak = k
-    check_result = check_to_txt( golden, result, f'check/{num}.data', f'np.allclose( result, golden, rtol={1e-5*rk}, atol={1e-8*ak}, equal_nan=True)' )
+    check_result = check_to_txt( golden, result, f'check/{num}.data', f'np.allclose( result, golden, rtol={1e-5 * rk}, atol={1e-8 * rk}, equal_nan=True)' )
     print(f"> {m}x{k}x{n}, check result: {check_result}")
     
 

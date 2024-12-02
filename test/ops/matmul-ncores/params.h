@@ -17,10 +17,6 @@
 #define CORENUMS 8
 #endif
 
-#ifndef BATCH
-#define BATCH 1
-#endif
-
 #define OUT_SIZE  (M * N)
 
 #endif

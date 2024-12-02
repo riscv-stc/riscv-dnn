@@ -32,7 +32,7 @@ PK := pk
 
 ifeq (x$(SIM), xspike)
 	SIM_CMD ?= \
-		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh_matrix \
+		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh_zvfh_matrix \
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	SIMV_POST := > build/$(NUM)/spike.log 2>&1
 	defines += -D__SPIKE__
@@ -70,7 +70,7 @@ else
 	CFLAGS := -DPREALLOCATE=1 -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -mabi=lp64d -c $(includes) $(defines)
 endif
 
-LDFLAGS :=-static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
+LDFLAGS := -lm -lgcc -static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
 
 target_elf = build/$(NUM)/test.elf
 target_dump = build/$(NUM)/test.dump

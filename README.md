@@ -26,9 +26,9 @@ rm */*.o */*.bin
 
 for example, run **add** operator test:
 ```
-cd  test/ops/add
+cd  test/ops/relu
 rm *.o *.bin
-python3 test.py sim
+python3 test.py
 ```
 
 * sim = spike or gem5 or vcs, default is spike. If sim = gem5, you must fix the gem5 path variance **GEM5** in *common.mk* 

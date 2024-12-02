@@ -14,18 +14,13 @@ from work import do_test
 
 title = "Diffent Optimization levels for conv operator"
 
-# opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-# opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
-# opt_levels = {"loop=1":"-O2 -D__RVM__", "loop=2":"-O2 -D__RVM__ -DNLOOPS=2", "im2col":"-O2 -D__IM2COL__"}
-opt_levels = {"im2col4":"-O2 -DNLOOPS=4 -D__RVM__", "im2col8":"-O2 -DNLOOPS=8 -D__RVM__"}
-
 simulator = 'spike'
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
 print("run on %s" % simulator)
 
 if simulator == 'spike':
-    opt_levels = {"RVM":"-O2 -D__RVM__"}
+    opt_levels = {"RVV":"-O2", "RVM":"-O2 -D__RVM__"}
 
 def conv(num, hin, win, cin, cout, kh, kw, sh=1, sw=1, dh=1, dw=1, pt=0, pb=0, pl=0, pr=0):
     shape_input = [1, hin, win, cin]
@@ -94,10 +89,10 @@ if __name__ == "__main__":
     os.system("rm *.o")
     params = (
         # # stage 0
-        # (224, 224, 3, 64, 7, 7,   2, 2,  1, 1,   3, 3, 3, 3),
+        (224, 224, 3, 64, 7, 7,   2, 2,  1, 1,   3, 3, 3, 3),
         # # stage 1
         (56, 56, 64, 256, 1, 1,   1, 1,  1, 1,   0, 0, 0, 0),
-        # (56, 56, 256, 512, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
+        (56, 56, 256, 512, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
         # # stage 4
         # (28, 28, 512, 1024, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),
         # (14, 14, 1024, 2048, 1, 1,   2, 2,  1, 1,   0, 0, 0, 0),

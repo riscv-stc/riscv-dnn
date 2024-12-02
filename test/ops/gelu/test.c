@@ -1,37 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../../../include/incbin.h"
 #include "../../../src/gelu.h"
 #include "../../../src/perf.h"
-#include "../../../include/incbin.h"
 
 #include "params.h"
 
 INCBIN(srcData, "src.bin", ".scdata.params");
 
-uint8_t dstData[H*W * sizeof(float16_t)] __attribute__((__section__(".scdata.output")));
+uint8_t dstData[H * W * sizeof(float16_t)]
+    __attribute__((__section__(".scdata.output")));
 
-int main(int argc, char **argv)
-{
-    printf("Begin\n");
+int main(int argc, char **argv) {
+  printf("Begin\n");
 
-    
-    if (DEBUG_PRINT) {
-        printf("In Shape:\n\t(h, w) = (%d, %d)\n",
-                    H, W);
-    }
+  if (DEBUG_PRINT) {
+    printf("In Shape:\n\t(h, w) = (%d, %d)\n", H, W);
+  }
 
-    config_2d(ss, H, W, W*sizeof(float16_t), W * sizeof(float16_t));
+  tensor_new_2d(srcMat, H, W, sizeof(float16_t), srcData);
+  tensor_new_2d(dstMat, H, W, sizeof(float16_t), &dstData);
+  PERF_BEGIN();
 
-    PERF_BEGIN();
+  for (int i = 0; i < NLOOPS; i++) {
+    gelu(&dstMat, &srcMat);
+  }
 
-    for (int i = 0; i < NLOOPS; i++) {
-        gelu(dstData, srcData, &ss);
-    }
+  PERF_END();
 
-    PERF_END();
-    
-    printf("End\n");
+  printf("End\n");
 
-    return 0;
+  return 0;
 }
