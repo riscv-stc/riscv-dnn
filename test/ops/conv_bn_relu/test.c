@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "../../../src/conv_bn_relu_rvm.h"
-#include "../../../src/conv_bn_relu_1x1.h"
 #include "../../../src/perf.h"
 #include "../../../include/incbin.h"
 
@@ -21,16 +20,18 @@ int main(int argc, char **argv)
 {
     printf("Begin\n");
 
-    config_conv(sst, HIN, WIN, CIN, COUT,
-                KH, KW, STRIDE_H, STRIDE_W, DILATION_H, DILATION_W,
-                PAD_TOP, PAD_BOTTOM, PAD_LEFT, PAD_RIGHT,
-                CIN*2+CACHELINE, COUT*2+CACHELINE, COUT*2+CACHELINE);
+    config_conv(sst, HIN, WIN, CIN, COUT, PAD_TOP, PAD_BOTTOM, PAD_LEFT, PAD_RIGHT, KH, KW, STRIDE_H, STRIDE_W, DILATION_H, DILATION_W);
 
+    tensor_new_3d(srcMat, HIN, WIN, CIN, sizeof(float16_t), srcData);
+    tensor_new_4d(weightMat, KH, KW, CIN, COUT, sizeof(float16_t), weightData);
+    tensor_new_1d(alphaMat, COUT, sizeof(float16_t), &alphaData);
+    tensor_new_1d(betaMat, COUT, sizeof(float16_t), &betaData);
+    tensor_new_3d(dstMat, HOUT, WOUT, COUT, sizeof(float16_t), &dstData);
 
     PERF_BEGIN();
 
     for (int i = 0; i < NLOOPS; i++) {
-        conv_bn_relu_rvm_1x1_remain(dstData, srcData, weightData+i*KH*KW*CIN*(COUT+CACHELINE/2), alphaData, betaData, &sst);
+        conv_bn_relu_rvm(&dstMat, &srcMat, &weightMat, &alphaMat, &betaMat, &sst);
     }
 
     PERF_END();

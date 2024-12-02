@@ -22,7 +22,7 @@ sys.path.append("../..")
 from check import *
 
 title = "Single CORES for Resnet50 Net"
-opt_levels = {"loop4": "-O2 -D__RVM__ -DNLOOPS=4", "loop8": "-O2 -D__RVM__ -DNLOOPS=8"}
+opt_levels = {"loop4": "-O2 -D__RVM__ -DGEM5 -DNLOOPS=4", "loop8": "-O2 -D__RVM__ -DGEM5 -DNLOOPS=8"}
 
 
 pwd = os.path.dirname(os.path.realpath(__file__))
@@ -35,7 +35,7 @@ if len(sys.argv) > 1:
     simulator = sys.argv[1]
 
 if simulator == 'spike':
-    opt_levels = {"1": "-O2 -D__RVM__ -DNLOOPS=1 "}
+    opt_levels = {"1": "-O2 -D__RVM__ -DNLOOPS=1 -DSPIKE"}
 
 # preprocess one picture
 def preprocess(img_path):
@@ -106,9 +106,9 @@ def get_golden_check(num, layer, BATCH):
 def test(num, params, defs, ncores=8):
     BATCH, *extras = params
     extras = None
-
+    out_size = 0x8000000
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
-    os.system(f"make clean && make DEFS='{defs} -DBATCH={BATCH}' run SIM={simulator} NUM={num}  > build/{num}/test.log 2>&1")
+    os.system(f"make clean && make DEFS='{defs} -DBATCH={BATCH}'  OUT_SIZE={out_size}  SIM={simulator} NUM={num}  > build/{num}/test.log 2>&1")
 
     # get_golden_check(num, "resnet_model/Relu", BATCH)
     # # # get_golden_check(num,  "resnet_model/conv2d_1/Conv2D", BATCH)
@@ -126,15 +126,10 @@ def test(num, params, defs, ncores=8):
     # get_golden_check(num, "softmax_tensor_fp16", BATCH)
 
 if __name__ == "__main__" :
-    ## run at first time
-    # os.system("rm *.o")
-    # os.system("python3 gen_weight_bin.py")
-    # os.system("python3 gen_input_bin-fp16.py")
-    # os.system("python3 gen_header.py")
-    # os.system("python3 gen_padding_input.py")
-    
     # params:
     #   BATCH
+    os.system("rm *.o")
+
     params = (
         (1,),
     )

@@ -1,447 +1,113 @@
 #ifndef __CONV_IM2COL_H__
 #define __CONV_IM2COL_H__
 
+#include "../include/matrix/matrix_intrinsic.h"
+#include "mme.h"
 #include "tensor.h"
+#include <riscv_matrix.h>
 #include <stddef.h>
 
-#include "mme.h"
-#include "matmul.h"
+static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight,
+                              Config *ss) {
+  int stride_h = ss->stride_h;
+  int stride_w = ss->stride_w;
 
-static inline int conv_im2col(void *dst, void *src, void *weight, Config *ss)
-{
-    int stride_h = ss->stride_h;
-    int stride_w = ss->stride_w;
+  int pad_t = ss->top;
+  int pad_b = ss->bottom;
+  int pad_l = ss->left;
+  int pad_r = ss->right;
 
-    int pad_t = ss->top;
-    int pad_b = ss->bottom;
-    int pad_l = ss->left;
-    int pad_r = ss->right;
+  int dilation_h = ss->dilation_h;
+  int dilation_w = ss->dilation_w;
 
-    int dilation_h = ss->dilation_h;
-    int dilation_w = ss->dilation_w;
+  int kh = ss->kh;
+  int kw = ss->kw;
 
-    int kh = ss->kh;
-    int kw = ss->kw;
+  int hin = ss->hin;
+  int win = ss->win;
+  int cin = ss->cin;
 
-    int hin = ss->hin;
-    int win = ss->win;
-    int cin = ss->cin;
+  int hout = ss->hout;
+  int wout = ss->wout;
+  int cout = ss->cout;
 
-    int hout = ss->hout;
-    int wout = ss->wout;
-    int cout = ss->cout;
+  int dataSize = sizeof(float16_t);
+  float16_t *psrc1 = (float16_t *)src->data;
+  float16_t *psrc2 = (float16_t *)weight->data;
+  float16_t *pdst = (float16_t *)dst->data;
 
-    int dataSize = sizeof(float16_t);
-    float16_t *psrc1 = (float16_t *)src;
-    float16_t *psrc2 = (float16_t *)weight;
-    float16_t *pdst = (float16_t *)dst;
+  int stride_s1 = src->stride;
+  int stride_s2 = weight->stride;
+  int stride_d = dst->stride;
 
-    int stride_s1 = ss->stride_src;
-    int stride_s2 = ss->stride_ker;
-    int stride_d = ss->stride_dst;
+  int moutsh = hout << 16 | wout;
+  int minsh = hin << 16 | win;
+  int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
+  int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
 
+  int m = hout * wout;
+  int k = kh * kw * cin;
+  int n = cout;
+
+  int tilem, tilen, tilek;
+  msetinsh(minsh, mpad);
+  msetoutsh(moutsh, mstdi);
+  msetpadval(0);
+
+  for (int i = 0; i < m; i += tilem) {
     msettypei(0x1);
     msettypehi(0x1);
+    // SET_MBA0_FP16();
+    tilem = msettilem(m - i);
 
-    int moutsh = hout << 16 | wout;
-    int minsh = hin << 16 | win;
-    int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
-    int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
+    int hout_pos = i / wout;
+    int wout_pos = i - hout_pos * wout;
 
-    int m = hout * wout;
-    int k = kh *kw * cin;
-    int n = cout;
+    for (int j = 0; j < n; j += tilen) {
+      tilen = msettilen(n - j);
+      msettypei(0x2);
+      msettypehi(0x4);
+      // SET_MBA0_F32();
+      mfloat32_t acc0;
+      acc0 = mfsub_f_mm(acc0, acc0);
 
-    int tilem, tilen, tilek;
-
-    msetoutsh(moutsh, mstdi);
-    msetinsh(minsh, mpad);
-
-    for (int i = 0; i < m; i+=tilem) {
-      tilem = msettilem(m-i);
-
-      int hout_pos = i / wout;
-      int wout_pos = i - hout_pos * wout;
-      
-      for (int j = 0; j < n; j+=tilen) {
-        tilen = msettilen(n-j);
-        mfloat16_t acc0;
-        acc0 = mfsub_mm(acc0, acc0);
-
-        for (int skh = 0; skh < kh; skh++) {
-          int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
-          for (int skw = 0; skw < kw; skw++) {
-            int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-            msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
-            float16_t *_prsc1 = psrc1+hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
-            float16_t *_psrc2 = psrc2+skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
-            for (int skc = 0; skc < cin;  skc+=tilek) {
-                tilek = msettilek(cin-skc);
-                mfloat16_t tr0 = mlufa_m(_prsc1+skc, stride_s1);
-                mfloat16_t tr1 = mlbe16_m1(_psrc2+skc*stride_s2/dataSize, stride_s2);
-                acc0 = mfma_mm(acc0, tr0, tr1);
-            }
+      for (int skh = 0; skh < kh; skh++) {
+        int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
+        for (int skw = 0; skw < kw; skw++) {
+          int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
+          msetsk(hin_pos << 16 | (win_pos & 0xFFFF),
+                 (skw * dilation_w) << 16 | wout_pos);
+          float16_t *_prsc1 = psrc1 + hin_pos * win * stride_s1 / dataSize +
+                              win_pos * stride_s1 / dataSize;
+          float16_t *_psrc2 = psrc2 + skh * kw * cin * stride_s2 / dataSize +
+                              skw * cin * stride_s2 / dataSize + j;
+          for (int skc = 0; skc < cin; skc += tilek) {
+            msettypei(0x1);
+            msettypehi(0x1);
+            // SET_MBA0_F16();
+            tilek = msettilek(cin - skc);
+            mfloat16_t tr0 = mlufa_m(_prsc1 + skc, stride_s1);
+            mfloat16_t tr1 =
+                mlb_m(_psrc2 + skc * stride_s2 / dataSize, stride_s2);
+            SET_MBA0_FP16_FP32();
+            acc0 = mfwma_mm(acc0, tr0, tr1);
           }
         }
-        msc_m(acc0, pdst+i*stride_d/dataSize+j, stride_d);
       }
+      SET_MBA0_FP32_FP16();
+      mfloat16_t acc1 = mfncvt_f_fw_m(acc0);
+      msettypei(0x1);
+      msettypehi(0x1);
+      // SET_MBA0_FP16();
+      msc_m(acc1, pdst + i * stride_d / dataSize + j, stride_d);
     }
+  }
 
-    
-    return 0;
-}
-//batch
-static inline int conv_rvm_batch8(void *dst, void *src, void *weight, Config *ss)
-{
-    int stride_h = ss->stride_h;
-    int stride_w = ss->stride_w;
-
-    int pad_t = ss->top;
-    int pad_b = ss->bottom;
-    int pad_l = ss->left;
-    int pad_r = ss->right;
-
-    int dilation_h = ss->dilation_h;
-    int dilation_w = ss->dilation_w;
-
-    int kh = ss->kh;
-    int kw = ss->kw;
-
-    int hin = ss->hin;
-    int win = ss->win;
-    int cin = ss->cin;
-
-    int hout = ss->hout;
-    int wout = ss->wout;
-    int cout = ss->cout;
-
-    int dataSize = sizeof(float16_t);
-    
-    float16_t *psrc1 = (float16_t *)src;
-    float16_t *psrc2 = (float16_t *)weight;
-    float16_t *pdst = (float16_t *)dst;
-
-    int stride_s1 = ss->stride_src;
-    int stride_s2 = ss->stride_ker;
-    int stride_d = ss->stride_dst;
-
-    int inSize = hin * win * stride_s1 / dataSize;
-    int outSize = hout * wout * stride_d / dataSize;
-
-    msettypei(0x1);
-    msettypehi(0x1);
-
-    int moutsh = hout << 16 | wout;
-    int minsh = hin << 16 | win;
-    int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
-    int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
-
-    int m = hout * wout;
-    int k = kh *kw * cin;
-    int n = cout;
-
-    int tilem, tilen, tilek;
-
-    msetinsh(minsh, mpad);
-    msetoutsh(moutsh, mstdi);
-
-    for (int i = 0; i < m; i+=tilem) {
-      tilem = msettilem(m-i);
-
-      int hout_pos = i / wout;
-      int wout_pos = i - hout_pos * wout;
-      
-      for (int j = 0; j < n; j+=tilen) {
-        tilen = msettilen(n-j);
-        mfloat16_t acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
-        acc0 = mfsub_mm(acc0, acc0);
-        acc1 = mfsub_mm(acc1, acc1);
-        acc2 = mfsub_mm(acc2, acc2);
-        acc3 = mfsub_mm(acc3, acc3);
-        acc4 = mfsub_mm(acc4, acc4);
-        acc5 = mfsub_mm(acc5, acc5);
-        acc6 = mfsub_mm(acc6, acc6);
-        acc7 = mfsub_mm(acc7, acc7);
-
-        for (int skh = 0; skh < kh; skh++) {
-          int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
-          for (int skw = 0; skw < kw; skw++) {
-            int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-            msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
-            float16_t *_psrc11 = psrc1 + hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
-            float16_t *_psrc2 = psrc2 + skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
-            for (int skc = 0; skc < cin;  skc+=tilek) {
-                tilek = msettilek(cin-skc);
-                mfloat16_t tr1 = mlbe16_m1(_psrc2+skc*stride_s2/dataSize, stride_s2);
-                // batch 0
-                float16_t *_psrc1 = _psrc11;
-                mfloat16_t tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc0 = mfma_mm(acc0, tr0, tr1);
-                // batch 1
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc1 = mfma_mm(acc1, tr0, tr1);
-                // batch 2
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc2 = mfma_mm(acc2, tr0, tr1);
-                // batch 3
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc3 = mfma_mm(acc3, tr0, tr1);
-                // batch 4
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc4 = mfma_mm(acc4, tr0, tr1);
-                // batch 5
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc5 = mfma_mm(acc5, tr0, tr1);
-                // batch 6
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc6 = mfma_mm(acc6, tr0, tr1);
-                // batch 7
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc7 = mfma_mm(acc7, tr0, tr1);
-            }
-          }
-        }
-        float16_t *_pdst = pdst + i*stride_d/dataSize+j;
-        msc_m(acc0, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc1, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc2, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc3, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc4, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc5, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc6, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc7, _pdst, stride_d);
-      }
-    }
-
-    
-    return 0;
+  return 0;
 }
 
-static inline int conv_rvm_batch4(void *dst, void *src, void *weight, Config *ss)
-{
-    int stride_h = ss->stride_h;
-    int stride_w = ss->stride_w;
-
-    int pad_t = ss->top;
-    int pad_b = ss->bottom;
-    int pad_l = ss->left;
-    int pad_r = ss->right;
-
-    int dilation_h = ss->dilation_h;
-    int dilation_w = ss->dilation_w;
-
-    int kh = ss->kh;
-    int kw = ss->kw;
-
-    int hin = ss->hin;
-    int win = ss->win;
-    int cin = ss->cin;
-
-    int hout = ss->hout;
-    int wout = ss->wout;
-    int cout = ss->cout;
-
-    int dataSize = sizeof(float16_t);
-    
-    float16_t *psrc1 = (float16_t *)src;
-    float16_t *psrc2 = (float16_t *)weight;
-    float16_t *pdst = (float16_t *)dst;
-
-    int stride_s1 = ss->stride_src;
-    int stride_s2 = ss->stride_ker;
-    int stride_d = ss->stride_dst;
-
-    int inSize = hin * win * stride_s1 / dataSize;
-    int outSize = hout * wout * stride_d / dataSize;
-
-    msettypei(0x1);
-    msettypehi(0x1);
-
-    int moutsh = hout << 16 | wout;
-    int minsh = hin << 16 | win;
-    int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
-    int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
-
-    int m = hout * wout;
-    int k = kh *kw * cin;
-    int n = cout;
-
-    int tilem, tilen, tilek;
-    msetinsh(minsh, mpad);
-    msetoutsh(moutsh, mstdi);
-
-    for (int i = 0; i < m; i+=tilem) {
-      tilem = msettilem(m-i);
-
-      int hout_pos = i / wout;
-      int wout_pos = i - hout_pos * wout;
-      
-      for (int j = 0; j < n; j+=tilen) {
-        tilen = msettilen(n-j);
-        mfloat16_t acc0, acc1, acc2, acc3;
-        acc0 = mfsub_mm(acc0, acc0);
-        acc1 = mfsub_mm(acc1, acc1);        
-        acc2 = mfsub_mm(acc2, acc2);        
-        acc3 = mfsub_mm(acc3, acc3);        
-
-        for (int skh = 0; skh < kh; skh++) {
-          int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
-          for (int skw = 0; skw < kw; skw++) {
-            int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-            msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
-            float16_t *_psrc11 = psrc1 + hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
-            float16_t *_psrc2 = psrc2 + skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
-            for (int skc = 0; skc < cin;  skc+=tilek) {
-                tilek = msettilek(cin-skc);
-                mfloat16_t tr1 = mlbe16_m1(_psrc2+skc*stride_s2/dataSize, stride_s2);
-                // batch 0
-                float16_t *_psrc1 = _psrc11;
-                mfloat16_t tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc0 = mfma_mm(acc0, tr0, tr1);
-                // batch 1
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc1 = mfma_mm(acc1, tr0, tr1);
-                // batch 2
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc2 = mfma_mm(acc2, tr0, tr1);
-                // batch 3
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc3 = mfma_mm(acc3, tr0, tr1);
-            }
-          }
-        }
-        float16_t *_pdst = pdst + i*stride_d/dataSize+j;
-        msc_m(acc0, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc1, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc2, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc3, _pdst, stride_d);
-      }
-    }
-
-    
-    return 0;
-}
-
-static inline int conv_rvm_batch2(void *dst, void *src, void *weight, Config *ss)
-{
-    int stride_h = ss->stride_h;
-    int stride_w = ss->stride_w;
-
-    int pad_t = ss->top;
-    int pad_b = ss->bottom;
-    int pad_l = ss->left;
-    int pad_r = ss->right;
-
-    int dilation_h = ss->dilation_h;
-    int dilation_w = ss->dilation_w;
-
-    int kh = ss->kh;
-    int kw = ss->kw;
-
-    int hin = ss->hin;
-    int win = ss->win;
-    int cin = ss->cin;
-
-    int hout = ss->hout;
-    int wout = ss->wout;
-    int cout = ss->cout;
-
-    int dataSize = sizeof(float16_t);
-    
-    float16_t *psrc1 = (float16_t *)src;
-    float16_t *psrc2 = (float16_t *)weight;
-    float16_t *pdst = (float16_t *)dst;
-
-    int stride_s1 = ss->stride_src;
-    int stride_s2 = ss->stride_ker;
-    int stride_d = ss->stride_dst;
-
-    int inSize = hin * win * stride_s1 / dataSize;
-    int outSize = hout * wout * stride_d / dataSize;
-
-    msettypei(0x1);
-    msettypehi(0x1);
-
-    int moutsh = hout << 16 | wout;
-    int minsh = hin << 16 | win;
-    int mpad = pad_t << 24 | pad_b << 16 | pad_l << 8 | pad_r;
-    int mstdi = dilation_h << 24 | dilation_w << 16 | stride_h << 8 | stride_w;
-
-    int m = hout * wout;
-    int k = kh *kw * cin;
-    int n = cout;
-
-    int tilem, tilen, tilek;
-
-    msetinsh(minsh, mpad);
-    msetoutsh(moutsh, mstdi);
-
-    for (int i = 0; i < m; i+=tilem) {
-      tilem = msettilem(m-i);
-
-      int hout_pos = i / wout;
-      int wout_pos = i - hout_pos * wout;
-      
-      for (int j = 0; j < n; j+=tilen) {
-        tilen = msettilen(n-j);        
-        mfloat16_t acc0, acc1;
-        acc0 = mfsub_mm(acc0, acc0);
-        acc1 = mfsub_mm(acc1, acc1);
-
-        for (int skh = 0; skh < kh; skh++) {
-          int hin_pos = hout_pos * stride_h - pad_t + skh * dilation_h;
-          for (int skw = 0; skw < kw; skw++) {
-            int win_pos = wout_pos * stride_w - pad_l + skw * dilation_w;
-            msetsk(hin_pos <<  16 | (win_pos & 0xffff), (skw * dilation_w) << 16 | wout_pos);
-            float16_t *_psrc11 = psrc1 + hin_pos*win*stride_s1/dataSize+win_pos*stride_s1/dataSize;
-            float16_t *_psrc2 = psrc2 + skh*kw*cin*stride_s2/dataSize+skw*cin*stride_s2/dataSize+j;
-            for (int skc = 0; skc < cin;  skc+=tilek) {
-                tilek = msettilek(cin-skc);
-                mfloat16_t tr1 = mlbe16_m1(_psrc2+skc*stride_s2/dataSize, stride_s2);
-                // batch 0
-                float16_t *_psrc1 = _psrc11;
-                mfloat16_t tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc0 = mfma_mm(acc0, tr0, tr1);
-                // batch 1
-                _psrc1 += inSize;
-                tr0 = mlufa_m(_psrc1+skc, stride_s1);
-                acc1 = mfma_mm(acc1, tr0, tr1);
-            }
-          }
-        }
-        float16_t *_pdst = pdst + i*stride_d/dataSize+j;
-        msc_m(acc0, _pdst, stride_d);
-        _pdst += outSize;
-        msc_m(acc1, _pdst, stride_d);
-      }
-    }
-
-    
-    return 0;
-}
-
-static inline int conv(void *dst, void *src, void *weight, Config *ss)
-{
+static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
+                       Config *ss) {
   conv_im2col(dst, src, weight, ss);
 }
 

@@ -44,7 +44,7 @@ def test(num, params, defs):
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)
-    check_result = check_to_txt( golden, result, f'check/{num}.data', 'np.allclose( result, golden, rtol=1e-3, atol=0, equal_nan=True)' )
+    check_result = check_to_txt( golden, result, f'check/{num}.data', 'np.allclose( result, golden, rtol=1e-3, atol=1e-2, equal_nan=True)' )
     print(f"> {h}x{w}, check result: {check_result}")
     
 

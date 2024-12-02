@@ -32,7 +32,7 @@ PK := pk
 
 ifeq (x$(SIM), xspike)
 	SIM_CMD ?= \
-		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh --varch=vlen:1024,elen:64,slen:1024,mlen:65536 \
+		$(SPIKE) -p${NCORES} --isa=rv64gcv_zfh_zvfh_matrix \
 			+signature=build/$(NUM)/spike.sig +signature-granularity=32 
 	SIMV_POST := > build/$(NUM)/spike.log 2>&1
 	defines += -D__SPIKE__
@@ -67,10 +67,10 @@ ifneq (x$(TC), xllvm)
 else
 	CC := clang --target=riscv64-unknown-elf  -march=rv64gv0p10zfh0p1 -menable-experimental-extensions
 	LINK := clang --target=riscv64-unknown-elf  -march=rv64gv0p10zfh0p1 -menable-experimental-extensions
-	CFLAGS := -g -mcmodel=medany -mllvm -ffast-math -fno-common -fno-builtin-printf $(includes) $(defines)
+	CFLAGS := -DPREALLOCATE=1 -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -mabi=lp64d -c $(includes) $(defines)
 endif
 
-LDFLAGS :=-static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
+LDFLAGS := -lm -lgcc -static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
 
 target_elf = build/$(NUM)/test.elf
 target_dump = build/$(NUM)/test.dump

@@ -5,22 +5,26 @@
 #include <stddef.h>
 #include <riscv_vector.h>
 
-#define FP16_ACC16 1
+//#define FP16_ACC16 1
 
-static inline int matmul(void *dst, void *src1, void *src2, int m , int k, int n)
+static inline int matmul(Tensor *dst, Tensor *src1, Tensor *src2)
 {
-    int h1 = m;
-    int w1 = k;
+    int h1 = src1->shape[0];
+    int w1 = src1->shape[1];
 
-    int h2 = k;
-    int w2 = n;
+    int h2 = src2->shape[0];
+    int w2 = src2->shape[1];
 
-    int hout = m;
-    int wout = n;
+    assert(w1 == h2);
 
-    float16_t *psrc1 = (float16_t *)src1;
-    float16_t *psrc2 = (float16_t *)src2;
-    float16_t *pdst = (float16_t *)dst;
+    int hout = dst->shape[0];
+    int wout = dst->shape[1];
+
+    assert(hout == h1 && wout == w2);
+
+    float16_t *psrc1 = (float16_t *)src1->data;
+    float16_t *psrc2 = (float16_t *)src2->data;
+    float16_t *pdst = (float16_t *)dst->data;
 
     int vl;
     for(int i = 0; i < h1; i++) {
@@ -29,7 +33,6 @@ static inline int matmul(void *dst, void *src1, void *src2, int m , int k, int n
             vl = vsetvl_e16m4(w2 - j);
 
             vfloat32m8_t _sum = vfmv_v_f_f32m8(0.f, vl);
-
             int offset_dst = i * w2 + j;
             float16_t *_psrc1_off = psrc1 + i * w1;
             float16_t *_psrc2_off = psrc2 + j;
@@ -45,7 +48,6 @@ static inline int matmul(void *dst, void *src1, void *src2, int m , int k, int n
             vl = vsetvl_e16m8(w2 - j);
 
             vfloat16m8_t _sum = vfmv_v_f_f16m8((float16_t)0.f, vl);
-            
             int offset_dst = i * w2 + j;
             float16_t *_psrc1_off = psrc1 + i * w1;
             float16_t *_psrc2_off = psrc2 + j;

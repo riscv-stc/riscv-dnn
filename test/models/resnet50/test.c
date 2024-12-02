@@ -51,7 +51,7 @@ int resnet50_base(void *indata, int num)
     tensor_new_3d(stage0_in, 230, 230, 3, DATASIZE, indata);
     tensor_new_3d(stage0_conv_out, stage0_conv.hout, stage0_conv.wout, stage0_conv.cout, DATASIZE, conv_data);
     tensor_new_4d_with_stride(conv_kernel_f16, stage0_conv.kh, stage0_conv.kw, stage0_conv.cin, stage0_conv.cout, DATASIZE, conv2d_kernel_data, 0);
-    conv_im2col_small_cin(&stage0_conv_out, &stage0_in, &conv_kernel_f16, &stage0_conv);
+    conv_im2col(&stage0_conv_out, &stage0_in, &conv_kernel_f16, &stage0_conv);
     if (DEBUG_PRINT) {
         printf("stage0_conv_out shape: \n\t(hout, wout, cout) = (%d, %d, %d)\n",
                 stage0_conv.hout, stage0_conv.wout, stage0_conv.cout);

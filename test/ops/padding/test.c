@@ -4,7 +4,7 @@
 #include "../../../src/padding.h"
 #include "../../../src/perf.h"
 #include "../../../include/incbin.h"
-
+#include "../../../src/mme.h"
 #include "params.h"
 
 INCBIN(srcData, "src.bin", ".scdata.params");

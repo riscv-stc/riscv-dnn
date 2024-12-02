@@ -9,6 +9,12 @@
 #define W 64
 #endif
 
+#ifndef C
+#define C 1
+#endif
+
+#define SIZE  (H * W * C)
+
 #ifndef NLOOPS
 #define NLOOPS 1
 #endif
