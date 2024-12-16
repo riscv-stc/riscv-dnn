@@ -70,7 +70,7 @@ else
 	CFLAGS := -DPREALLOCATE=1 -mcmodel=medany -static -std=gnu99 -O2 -ffast-math -fno-common -fno-builtin-printf -mabi=lp64d -c $(includes) $(defines)
 endif
 
-LDFLAGS := -lm -lgcc -static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
+LDFLAGS := -static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
 
 target_elf = build/$(NUM)/test.elf
 target_dump = build/$(NUM)/test.dump
