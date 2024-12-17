@@ -26,7 +26,7 @@ rm */*.o */*.bin
 
 for example, run **add** operator test:
 ```
-cd  test/ops/relu
+cd  test/ops/add
 rm *.o *.bin
 python3 test.py
 ```
