@@ -109,6 +109,7 @@ static inline int conv_im2col(Tensor *dst, Tensor *src, Tensor *weight,
 static inline int conv(Tensor *dst, Tensor *src, Tensor *weight, Tensor *srcPad,
                        Config *ss) {
   conv_im2col(dst, src, weight, ss);
+  return 0;
 }
 
 #endif
