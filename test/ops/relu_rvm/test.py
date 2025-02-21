@@ -18,15 +18,14 @@ if len(sys.argv) > 1:
 print("run on %s" % simulator)
 
 
-def add(num, hin, win, cin, cout):
-    vs1 = np.random.random((hin, win, cin, cout)).astype('float16') * 2 - 1
-    vs2 = np.random.random((hin, win, cin, cout)).astype('float16') * 2 - 1
+def relu(num, hin, win, cin, base):
+    vs1 = np.random.random((hin, win, cin)).astype('float16') * 2 - 1
+    base = np.array(base).astype('float16')
+    vd = np.where(vs1 > base, vs1, base)
+    vd = vd.astype('float16')
 
-    vd = np.add(vs1, vs2)
-    vd.astype('float16')
-    
-    vs1.tofile(f'build/{num}/src1.bin')
-    vs2.tofile(f'build/{num}/src2.bin')
+    vs1.tofile(f'build/{num}/src.bin')
+    base.tofile(f'build/{num}/base.bin')
     vd.tofile(f'build/{num}/golden.bin')
 
     return vd
@@ -34,31 +33,31 @@ def add(num, hin, win, cin, cout):
 
 
 def test(num, params, defs):
-    h, w, cin, cout = params
+    h, w, c, base = params
 
     os.system(f"rm -rf build/{num} && mkdir -p build/{num}")
 
-    golden = add(num, h, w, cin, cout)
+    golden = relu(num, h, w, c, base)
 
-    os.system(f"make DEFS='-DH={h} -DW={w} -DCIN={cin} -DCOUT={cout} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make ll DEFS='-DH={h} -DW={w} -DC={c} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
 
     result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
     os.makedirs('check', exist_ok=True)
     check_result = check_to_txt( golden, result, f'check/{num}.data', 'np.allclose( result, golden, rtol=1e-3, atol=0, equal_nan=True)' )
-    print(f"> {h}x{w}x{cin}x{cout}, check result: {check_result}")
+    print(f"> {h}x{w}x{c}x{base}, check result: {check_result}")
     
 
 if __name__ == "__main__":
-    #############  h w cin cout
+    ############# h, w, c, base
     params = (
-            (1,  8,  1, 1),
-            (4,  8,  1, 1),
-            (8,  8,  1, 1),
-            (32, 8,  1, 1),
-            (128, 8,  1, 1),
-            (512, 8,  1, 1),
+            (1, 1, 8, 0),
+            (1, 4, 8, 0),
+            (1, 8, 8, 0),
+            (1, 32, 8, 0),
+            (1, 128, 8, 0),
+            (1, 512, 8, 0),
             )
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')
 
-
+    os.system("stty echo")

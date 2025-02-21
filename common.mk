@@ -73,13 +73,16 @@ endif
 LDFLAGS := -static -nostdlib  -nostartfiles  -T $(inc_dir)/common/test.ld
 
 target_elf = build/$(NUM)/test.elf
+target_ll = build/$(NUM)/test.ll
 target_dump = build/$(NUM)/test.dump
 target_map = build/$(NUM)/test.map
 
 objects = build/$(NUM)/test.o crt.o syscalls.o
 
 
-all: $(target_elf)
+all: 
+	$(target_ll)
+	$(target_elf)
 
 syscalls.o: $(inc_dir)/common/syscalls.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -102,11 +105,17 @@ $(target_map): $(target_elf)
 run: $(target_elf) $(target_map)
 	$(SIM_CMD)$(target_elf) $(SIMV_POST)
 
+ll: $(target_ll)
+
+$(target_ll): test.c
+	$(CC) $(CFLAGS) -S -emit-llvm -o $@ $<
+
 dump: $(target_dump)
 
 $(target_dump): $(target_elf)
 	$(OBJDUMP) -S $(target_elf) > $(target_dump)
-	
+
+
 clean:
 	rm -f $(target_elf) $(objects) $(target_dump) $(target_map) *.sig
 

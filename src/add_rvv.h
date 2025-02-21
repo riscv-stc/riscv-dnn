@@ -7,7 +7,8 @@
 
 // #define USE_FP32
 
-static inline int add(Tensor *dst, Tensor *src1, Tensor *src2) {
+static inline int add(Tensor *dst, Tensor *src1, Tensor *src2)
+{
   assert(src1->size == src2->size && src2->size == dst->size);
 
   float16_t *psrc1 = (float16_t *)src1->data;
@@ -15,7 +16,8 @@ static inline int add(Tensor *dst, Tensor *src1, Tensor *src2) {
   float16_t *pdst = (float16_t *)dst->data;
 
   int vl;
-  for (int i = 0; i < src1->size; i += vl) {
+  for (int i = 0; i < src1->size; i += vl)
+  {
     vl = vsetvl_e16m8(src1->size - i);
 #ifndef USE_FP32
     vfloat16m8_t _src1 = vle16_v_f16m8(psrc1, vl);
@@ -39,7 +41,8 @@ static inline int add(Tensor *dst, Tensor *src1, Tensor *src2) {
   return 0;
 }
 
-static inline int addw(Tensor *dst, Tensor *src1, Tensor *src2) {
+static inline int addw(Tensor *dst, Tensor *src1, Tensor *src2)
+{
   assert(src1->size == src2->size && src2->size == dst->size);
 
   float16_t *psrc1 = (float16_t *)src1;
@@ -47,7 +50,8 @@ static inline int addw(Tensor *dst, Tensor *src1, Tensor *src2) {
   float32_t *pdst = (float32_t *)dst;
 
   int vl;
-  for (int i = 0; i < src1->size; i += vl) {
+  for (int i = 0; i < src1->size; i += vl)
+  {
     vl = vsetvl_e16m4(src1->size - i);
     vfloat16m4_t _src1 = vle16_v_f16m4(psrc1, vl);
     psrc1 += vl;
