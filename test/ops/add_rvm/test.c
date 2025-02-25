@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../../src/add.h"
+#include "../../../src/add_rvm.h"
 #include "../../../src/perf.h"
 #include "../../../include/incbin.h"
 
@@ -20,10 +20,11 @@ int main(int argc, char **argv)
     const int w = W;
     const int cin = CIN;
     const int cout = COUT;
-    
-    if (DEBUG_PRINT) {
+
+    if (DEBUG_PRINT)
+    {
         printf("In Shape:\n\t(h, w, cin, cout) = (%d, %d, %d, %d)\n",
-                    h, w, cin, cout);
+               h, w, cin, cout);
     }
 
     tensor_new_4d(src1Mat, h, w, cin, cout, sizeof(float16_t), src1Data);
@@ -32,12 +33,13 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    for (int i = 0; i < NLOOPS; i++) {
+    for (int i = 0; i < NLOOPS; i++)
+    {
         add(&dstMat, &src1Mat, &src2Mat);
     }
 
     PERF_END();
-    
+
     printf("End\n");
 
     return 0;

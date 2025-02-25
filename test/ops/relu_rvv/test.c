@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../../src/relu.h"
+#include "../../../src/relu_rvv.h"
 #include "../../../src/perf.h"
 #include "../../../include/incbin.h"
 
@@ -19,10 +19,11 @@ int main(int argc, char **argv)
     const int h = H;
     const int w = W;
     const int c = C;
-    
-    if (DEBUG_PRINT) {
+
+    if (DEBUG_PRINT)
+    {
         printf("In Shape:\n\t(h, w, c) = (%d, %d, %d)\n",
-                    h, w, c);
+               h, w, c);
     }
 
     tensor_new_3d(srcMat, h, w, c, sizeof(float16_t), srcData);
@@ -32,12 +33,13 @@ int main(int argc, char **argv)
 
     PERF_BEGIN();
 
-    for (int i = 0; i < NLOOPS; i++) {
+    for (int i = 0; i < NLOOPS; i++)
+    {
         relu(&dstMat, &srcMat, base);
     }
 
     PERF_END();
-    
+
     printf("End\n");
 
     return 0;
