@@ -81,7 +81,6 @@ objects = build/$(NUM)/test.o crt.o syscalls.o
 
 
 all: 
-	$(target_ll)
 	$(target_elf)
 
 syscalls.o: $(inc_dir)/common/syscalls.c

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../../src/relu_rvv.h"
+#include "../../../src/relu.h"
 #include "../../../src/perf.h"
 #include "../../../include/incbin.h"
 
