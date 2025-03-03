@@ -1,6 +1,29 @@
 import numpy as np
 import jax.numpy as jnp
 
+def from_npu_dump(fpath, golden, start ):
+    ebyte = golden.itemsize
+    size = golden.size
+    dtype = golden.dtype
+
+    result = []
+    with open(fpath) as file:
+        content = file.read()
+        result = content.split()
+
+    result = result[:size]
+
+    tmp = []
+    for str in result:
+        num = int(str, 16)
+        tmp.append(num)
+
+    data = np.array(tmp, dtype='uint%d' % (ebyte*8))
+    data.dtype = dtype
+    data = data.reshape( golden.shape )
+
+    return data
+
 # find the result from the start location of signature file
 def from_txt(fpath, golden, start ):
     ebyte = golden.itemsize
