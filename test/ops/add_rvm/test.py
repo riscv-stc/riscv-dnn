@@ -62,5 +62,4 @@ if __name__ == "__main__":
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')
 
-    os.system("stty echo")
 

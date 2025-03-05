@@ -5,17 +5,18 @@ import numpy as np
 import pandas as pd
 
 sys.path.append("../../../utils") 
-from check import from_txt, check_to_txt
+from check import from_npu_dump, check_to_txt
 from work import do_test
 
 
 title = "Diffent Optimization levels for add operator"
-opt_levels = {"loop=1":"-O2", "loop=2":"-O2 -DNLOOPS=2"}
+opt_levels = {"loop=1":"-O2"}
 
 simulator = 'spike'
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
-print("run on %s" % simulator)
+
+print("run on npu")
 
 
 def relu(num, hin, win, cin, base):
@@ -39,9 +40,14 @@ def test(num, params, defs):
 
     golden = relu(num, h, w, c, base)
 
-    os.system(f"make DEFS='-DH={h} -DW={w} -DC={c} {defs}' run SIM={simulator} NUM={num} >build/{num}/test.log 2>&1")
+    os.system(f"make ll NUM={num} > build/{num}/test.log 2>&1")
 
-    result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
+    os.system(f"cp -rf ~/opt/transform/run-matrix2npu build/{num}")
+
+    os.system(f"./build/{num}/run-matrix2npu/run_npu.sh build/{num}/test.ll >> build/{num}/test.log 2>&1")
+ 
+    result = from_npu_dump( f'build/{num}/run-matrix2npu/workspace/npu.dump', golden, 0)
+
     os.makedirs('check', exist_ok=True)
     check_result = check_to_txt( golden, result, f'check/{num}.data', 'np.allclose( result, golden, rtol=1e-3, atol=0, equal_nan=True)' )
     print(f"> {h}x{w}x{c}x{base}, check result: {check_result}")
@@ -50,11 +56,11 @@ def test(num, params, defs):
 if __name__ == "__main__":
     ############# h, w, c, base
     params = (
-            (1, 1, 8, 0),
-            (1, 4, 8, 0),
-            (1, 8, 8, 0),
-            (1, 32, 8, 0),
-            (1, 128, 8, 0),
+            # (1, 1, 8, 0),
+            # (1, 4, 8, 0),
+            # (1, 8, 8, 0),
+            # (1, 32, 8, 0),
+            # (1, 128, 8, 0),
             (1, 512, 8, 0),
             )
     

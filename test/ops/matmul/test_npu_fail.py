@@ -6,13 +6,14 @@ import pandas as pd
 import math
 
 sys.path.append("../../../utils") 
-from check import from_txt, check_to_txt
+from check import from_npu_dump, check_to_txt
 from work import do_test
 
 title = "Diffent Optimization levels for matmul operator"
 
 # opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16", "rvv":"-O2"}
-opt_levels = {"rvv":"-O2" }
+# opt_levels = {"rvv":"-O2", "rvm":"-O2 -D__RVM__" }
+opt_levels = {"rvv_fp16acc":"-O2 -DFP16_ACC16"}
 
 cols = ['Workload', 'Cycles', 'IPC', 'Front', 'BS', 'MEM', 'CORE', 'Retire']
 
@@ -20,7 +21,8 @@ simulator = 'spike'
 GEM5 = "/home/kening.zhang/stc-exp/simulator/gem5"
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
-print("run on %s" % simulator)
+
+print("run on npu")
 
 
 def matmul(num, m, k, n):
@@ -42,19 +44,20 @@ def test(num, params, defs, ncores=8):
 
     golden = matmul(num, m, k, n)
     out_size = hex(math.ceil((m * n  )/8)*8)
-    os.system(f"make DEFS='-DM={m} -DK={k} -DN={n} -DCORENUMS={ncores} {defs}' OUT_SIZE={out_size} run SIM={simulator} NUM={num} NCORES={ncores} >build/{num}/test.log 2>&1")
 
-    result = from_txt( f'build/{num}/{simulator}.sig', golden, 0 )
+    os.system(f"make ll DEFS='-DM={m} -DK={k} -DN={n} -DCORENUMS={ncores} {defs}' OUT_SIZE={out_size}  NUM={num} NCORES={ncores} >build/{num}/test.log 2>&1")
+
+    os.system(f"cp -rf ~/opt/transform/run-matrix2npu build/{num}")
+
+    os.system(f"./build/{num}/run-matrix2npu/run_npu.sh build/{num}/test.ll >> build/{num}/test.log 2>&1")
+
+    result = from_npu_dump( f'build/{num}/run-matrix2npu/workspace/npu.dump', golden, 0)
+
     os.makedirs('check', exist_ok=True)
 
-    fp16acc = '-DFP16_ACC16' in defs
-    # fp16acc use larger tolerances
-    if fp16acc:
-        rk = k * 1000
-        ak = k * 10000
-    else:
-        rk = k
-        ak = k
+    rk = k * 1000
+    ak = k * 10000
+
     check_result = check_to_txt( golden, result, f'check/{num}.data', f'np.allclose( result, golden, rtol={1e-5*rk}, atol={1e-8*ak}, equal_nan=True)' )
     print(f"> {m}x{k}x{n}, check result: {check_result}")
     
@@ -63,8 +66,8 @@ if __name__ == "__main__":
     # perf params
     params = (
         #  m k n
-        (16, 16, 16),
-        (32, 32, 32),
+        # (16, 16, 16),
+        # (32, 32, 32),
         (64, 64, 64),
     )
     

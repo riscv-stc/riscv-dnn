@@ -15,7 +15,8 @@ opt_levels = {"loop=1":"-O2"}
 simulator = 'spike'
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
-print("run on %s" % simulator)
+
+print("run on npu")
 
 
 def add(num, hin, win, cin, cout):
@@ -42,7 +43,7 @@ def test(num, params, defs):
 
     os.system(f"make ll NUM={num} > build/{num}/test.log 2>&1")
 
-    os.system(f"cp -rf /home/chenbingzheng/WORKSPACE/OPEN/MC2LL/llvm-project/run-matrix2npu build/{num}")
+    os.system(f"cp -rf ~/opt/transform/run-matrix2npu build/{num}")
 
     os.system(f"./build/{num}/run-matrix2npu/run_npu.sh build/{num}/test.ll >> build/{num}/test.log 2>&1")
  
@@ -66,5 +67,4 @@ if __name__ == "__main__":
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')
 
-    os.system("stty echo")
 

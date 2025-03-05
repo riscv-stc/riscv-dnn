@@ -66,3 +66,5 @@ def do_test(params, opt_levels, test_func, title, simulator, enable_perf = False
         generate_perf_report(title, [x for x in opt_levels.keys()])
         print('> Perf report generated.')
 
+    os.system("stty echo")
+
