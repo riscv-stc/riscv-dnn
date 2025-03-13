@@ -15,7 +15,8 @@ opt_levels = {"loop=1":"-O2"}
 simulator = 'spike'
 if len(sys.argv) > 1:
     simulator = sys.argv[1]
-print("run on %s" % simulator)
+
+print("run on npu")
 
 
 def relu(num, hin, win, cin, base):
@@ -40,7 +41,7 @@ def test(num, params, defs):
     golden = relu(num, h, w, c, base)
 
     os.system(f"make ll NUM={num} > build/{num}/test.log 2>&1")
-    os.system(f"cp -rf /home/chenbingzheng/WORKSPACE/OPEN/MC2LL/llvm-project/run-matrix2npu build/{num}")
+    os.system(f"cp -rf ~/opt/transform/run-matrix2npu build/{num}")
     os.system(f"./build/{num}/run-matrix2npu/run_npu.sh build/{num}/test.ll >> build/{num}/test.log 2>&1")
  
     result = from_npu_dump( f'build/{num}/run-matrix2npu/workspace/npu.dump', golden, 0)
@@ -64,4 +65,3 @@ if __name__ == "__main__":
     
     do_test(params, opt_levels, test, title, simulator, simulator!='spike')
 
-    os.system("stty echo")
